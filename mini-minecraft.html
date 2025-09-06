@@ -1,0 +1,3287 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <script src="https://cdn.jsdelivr.net/npm/simple-peer@9.11.1/simplepeer.min.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebGL Minecraft 3D - 多人版</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap');
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Orbitron', monospace;
+            background: #000;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        #gameContainer {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        #gameCanvas {
+            display: block;
+            cursor: crosshair;
+            background: linear-gradient(to bottom, #87CEEB 0%, #98FB98 100%);
+        }
+
+        #crosshair {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 20px;
+            height: 20px;
+            z-index: 150;
+            pointer-events: none;
+        }
+
+        #crosshair::before,
+        #crosshair::after {
+            content: '';
+            position: absolute;
+            background: rgba(255, 255, 255, 0.9);
+            box-shadow: 0 0 3px rgba(0, 0, 0, 0.8);
+        }
+
+        #crosshair::before {
+            width: 2px;
+            height: 20px;
+            left: 9px;
+            top: 0;
+        }
+
+        #crosshair::after {
+            width: 20px;
+            height: 2px;
+            left: 0;
+            top: 9px;
+        }
+
+        #ui {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: #fff;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+            z-index: 100;
+            background: rgba(0, 0, 0, 0.4);
+            padding: 15px;
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            font-size: 14px;
+        }
+
+        #ui div {
+            margin: 5px 0;
+        }
+
+        #inventory {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 10px;
+            z-index: 100;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 15px;
+            border-radius: 15px;
+            backdrop-filter: blur(15px);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .inventory-slot {
+            width: 70px;
+            height: 70px;
+            border: 3px solid #555;
+            background: rgba(40, 40, 40, 0.9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            border-radius: 10px;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .inventory-slot:hover {
+            transform: scale(1.1);
+            border-color: #888;
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+        }
+
+        .inventory-slot.active {
+            border-color: #00ff88;
+            background: rgba(0, 255, 136, 0.2);
+            box-shadow: 0 0 25px rgba(0, 255, 136, 0.5);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                box-shadow: 0 0 25px rgba(0, 255, 136, 0.5);
+            }
+
+            50% {
+                box-shadow: 0 0 35px rgba(0, 255, 136, 0.8);
+            }
+        }
+
+        .inventory-slot .block-icon {
+            font-size: 2em;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+        }
+    </style>
+</head>
+
+<body>
+    <div id="gameContainer">
+        <canvas id="gameCanvas"></canvas>
+        <div id="crosshair"></div>
+
+        <div id="ui">
+            <div>🌍 座標: <span id="position">0, 0, 0</span></div>
+            <div>🧭 方向: <span id="direction">0°</span></div>
+            <div>📦 方塊: <span id="blockCount">0</span></div>
+            <div>🏔️ 生物群落: <span id="biome">平原</span></div>
+            <div>⚡ 渲染: <span id="renderInfo">WebGL</span></div>
+            <div>👥 玩家: <span id="playerCount">1</span></div>
+            <div>🌐 連線: <span id="connectionStatus">離線</span></div>
+            <div>📡 P2P: <span id="p2pStatus">未連接</span></div>
+        </div>
+
+        <div id="fps">FPS: <span id="fpsCounter">60</span></div>
+
+        <canvas id="minimap"></canvas>
+
+        <div id="inventory">
+            <div class="inventory-slot active" data-block="grass">
+                <div class="block-icon">🟩</div>
+            </div>
+            <div class="inventory-slot" data-block="stone">
+                <div class="block-icon">⬜</div>
+            </div>
+            <div class="inventory-slot" data-block="wood">
+                <div class="block-icon">🟫</div>
+            </div>
+            <div class="inventory-slot" data-block="water">
+                <div class="block-icon">🟦</div>
+            </div>
+        </div>
+        <!-- 暫停選單 -->
+        <div id="pauseMenu" style="display: none;">
+            <div class="menu-container">
+                <h2>⏸️ 遊戲暫停</h2>
+                <div class="menu-buttons">
+                    <button id="resumeButton" class="menu-btn">▶️ 繼續遊戲</button>
+                    <button id="multiplayerButton" class="menu-btn">👥 多人遊戲</button>
+                    <button id="settingsButton" class="menu-btn">⚙️ 設定</button>
+                    <button id="mainMenuButton" class="menu-btn">🏠 主選單</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 多人遊戲選單 -->
+        <div id="connectionStatus" style="display: none; margin-top: 15px;">
+            <div class="status-message">
+                <span id="statusText">準備連接...</span>
+            </div>
+        </div>
+        <div id="multiplayerMenu" style="display: none;">
+            <div class="menu-container">
+                <h2>👥 多人遊戲</h2>
+                <div class="multiplayer-options">
+                    <div class="input-group">
+                        <label>玩家名稱:</label>
+                        <input type="text" id="playerName" placeholder="輸入你的名稱" maxlength="16">
+                    </div>
+                    <div class="input-group">
+                        <label>房間ID:</label>
+                        <input type="text" id="roomId" placeholder="輸入房間ID或留空創建新房間" maxlength="10">
+                    </div>
+                    <div class="menu-buttons">
+                        <button id="joinRoomButton" class="menu-btn">🚪 加入房間</button>
+                        <button id="createRoomButton" class="menu-btn">➕ 創建房間</button>
+                        <button id="backToGameButton" class="menu-btn">⬅️ 返回</button>
+                    </div>
+                    <div id="roomInfo" style="display: none;">
+                        <h3>房間資訊</h3>
+                        <p>房間ID: <span id="currentRoomId"></span></p>
+                        <p>玩家數量: <span id="roomPlayerCount">1</span></p>
+                        <div id="playerList"></div>
+                        <div class="menu-buttons" style="margin-top: 20px;">
+                            <button id="startGameButton" class="menu-btn">🎮 開始遊戲</button>
+                            <button id="leaveRoomButton" class="menu-btn">🚪 離開房間</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 主選單更新 -->
+        <div id="instructions">
+            <h2>🎮 WebGL Minecraft - 多人版</h2>
+            <div class="game-modes">
+                <button id="singlePlayerButton" class="mode-btn">🎯 單人遊戲</button>
+                <button id="multiPlayerStartButton" class="mode-btn">👥 多人遊戲</button>
+            </div>
+            <div class="controls-info">
+                <p><strong>WASD</strong> - 移動角色</p>
+                <p><strong>滑鼠</strong> - 轉動視角</p>
+                <p><strong>左鍵</strong> - 破壞方塊</p>
+                <p><strong>右鍵</strong> - 放置方塊</p>
+                <p><strong>1-4或滑鼠滾輪</strong> - 選擇方塊類型</p>
+                <p><strong>空白鍵</strong> - 跳躍</p>
+                <p><strong>Shift</strong> - 下降/潛行</p>
+                <p><strong>F</strong> - 飛行模式</p>
+                <p><strong>ESC</strong> - 暫停選單</p>
+                <p><strong>T</strong> - 聊天</p>
+            </div>
+        </div>
+
+        <div id="loading" class="loading" style="display: none;">
+            正在初始化 WebGL 引擎
+            <div class="loading-bar">
+                <div class="loading-progress" id="loadingProgress"></div>
+            </div>
+        </div>
+
+        <div id="debug">
+            <div>三角形: <span id="triangleCount">0</span></div>
+            <div>頂點: <span id="vertexCount">0</span></div>
+            <div>繪製調用: <span id="drawCalls">0</span></div>
+        </div>
+
+        <!-- 聊天系統 -->
+        <div id="chatContainer" style="display: none;">
+            <div id="chatMessages"></div>
+            <div id="chatInput">
+                <input type="text" id="messageInput" placeholder="按T開始聊天..." maxlength="100">
+                <button id="sendMessage">發送</button>
+            </div>
+        </div>
+
+        <!-- 其他玩家名牌 -->
+        <div id="playerNameTags"></div>
+    </div>
+    <style>
+        /* 選單樣式 */
+        #pauseMenu,
+        #multiplayerMenu {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(20px);
+        }
+
+        .menu-container {
+            background: rgba(20, 20, 20, 0.95);
+            padding: 40px;
+            border-radius: 20px;
+            text-align: center;
+            border: 3px solid #00ff88;
+            box-shadow: 0 0 50px rgba(0, 255, 136, 0.3);
+            max-width: 500px;
+            width: 90%;
+        }
+
+        .menu-container h2 {
+            color: #00ff88;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-shadow: 0 0 20px rgba(0, 255, 136, 0.8);
+        }
+
+        .menu-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .menu-btn,
+        .mode-btn {
+            background: linear-gradient(45deg, #00ff88, #00cc6a);
+            color: #000;
+            border: none;
+            padding: 15px 30px;
+            font-size: 18px;
+            font-weight: bold;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 20px rgba(0, 255, 136, 0.4);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .menu-btn:hover,
+        .mode-btn:hover {
+            background: linear-gradient(45deg, #00cc6a, #00ff88);
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(0, 255, 136, 0.6);
+        }
+
+        .game-modes {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 30px;
+            justify-content: center;
+        }
+
+        .controls-info {
+            text-align: left;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+        }
+
+        .controls-info p {
+            margin: 8px 0;
+            color: #ccc;
+        }
+
+        #instructions {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.95);
+            color: white;
+            padding: 40px;
+            border-radius: 20px;
+            text-align: center;
+            z-index: 200;
+            backdrop-filter: blur(20px);
+            border: 3px solid #00ff88;
+            max-width: 600px;
+            box-shadow: 0 0 50px rgba(0, 255, 136, 0.3);
+        }
+
+        #instructions h2 {
+            color: #00ff88;
+            margin-bottom: 25px;
+            font-size: 2.5em;
+            text-shadow: 0 0 20px rgba(0, 255, 136, 0.8);
+            animation: glow 2s infinite alternate;
+        }
+
+        @keyframes glow {
+            from {
+                text-shadow: 0 0 20px rgba(0, 255, 136, 0.8);
+            }
+
+            to {
+                text-shadow: 0 0 30px rgba(0, 255, 136, 1), 0 0 40px rgba(0, 255, 136, 0.8);
+            }
+        }
+
+        .game-modes {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 30px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .controls-info {
+            text-align: left;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+        }
+
+        .controls-info p {
+            margin: 8px 0;
+            color: #ccc;
+            font-size: 14px;
+        }
+
+        /* 多人遊戲介面 */
+        .multiplayer-options {
+            text-align: left;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        .input-group label {
+            display: block;
+            color: #00ff88;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #00ff88;
+            border-radius: 8px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            font-size: 16px;
+        }
+
+        .input-group input:focus {
+            outline: none;
+            box-shadow: 0 0 15px rgba(0, 255, 136, 0.5);
+        }
+
+        #roomInfo {
+            background: rgba(0, 255, 136, 0.1);
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+            border: 1px solid #00ff88;
+        }
+
+        #roomInfo h3 {
+            color: #00ff88;
+            margin-bottom: 15px;
+        }
+
+        #playerList {
+            margin-top: 15px;
+        }
+
+        .player-item {
+            background: rgba(0, 0, 0, 0.5);
+            padding: 8px 12px;
+            margin: 5px 0;
+            border-radius: 5px;
+            border-left: 3px solid #00ff88;
+            color: white;
+        }
+
+        /* 聊天系統樣式 */
+        #chatContainer {
+            position: absolute;
+            bottom: 120px;
+            left: 20px;
+            width: 400px;
+            height: 200px;
+            background: rgba(0, 0, 0, 0.8);
+            border-radius: 10px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            z-index: 200;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #chatMessages {
+            flex: 1;
+            padding: 10px;
+            overflow-y: auto;
+            font-size: 14px;
+            color: white;
+        }
+
+        .chat-message {
+            margin: 3px 0;
+            padding: 2px 5px;
+            border-radius: 3px;
+        }
+
+        .chat-message.system {
+            color: #ffff00;
+            font-style: italic;
+        }
+
+        .chat-message.player {
+            color: #00ff88;
+        }
+
+        #chatInput {
+            display: flex;
+            padding: 10px;
+            border-top: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        #messageInput {
+            flex: 1;
+            padding: 8px;
+            border: 1px solid #00ff88;
+            border-radius: 5px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            margin-right: 10px;
+        }
+
+        #sendMessage {
+            padding: 8px 15px;
+            background: #00ff88;
+            color: black;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        /* 玩家名牌樣式 */
+        .player-nametag {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+            text-align: center;
+            border: 1px solid #00ff88;
+            pointer-events: none;
+            z-index: 150;
+            transform: translateX(-50%);
+        }
+
+        /* 其他玩家指示器 */
+        .other-player {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background: #ff4444;
+            border: 2px solid white;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 140;
+        }
+
+        /* FPS和其他UI元素樣式更新 */
+        #fps {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            color: #00ff88;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+            z-index: 100;
+            background: rgba(0, 0, 0, 0.4);
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-weight: bold;
+            border: 1px solid rgba(0, 255, 136, 0.3);
+        }
+
+        #minimap {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            width: 180px;
+            height: 180px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 3px solid #00ff88;
+            border-radius: 15px;
+            z-index: 100;
+            box-shadow: 0 0 20px rgba(0, 255, 136, 0.3);
+        }
+
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #00ff88;
+            font-size: 2em;
+            z-index: 300;
+            text-align: center;
+            text-shadow: 0 0 20px rgba(0, 255, 136, 0.8);
+        }
+
+        .loading-bar {
+            width: 300px;
+            height: 10px;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 5px;
+            margin: 20px auto;
+            overflow: hidden;
+            border: 1px solid #00ff88;
+        }
+
+        .loading-progress {
+            height: 100%;
+            background: linear-gradient(90deg, #00ff88, #00cc6a);
+            width: 0%;
+            transition: width 0.3s ease;
+            box-shadow: 0 0 10px rgba(0, 255, 136, 0.8);
+        }
+
+        .loading::after {
+            content: '';
+            animation: dots 1.5s infinite;
+        }
+
+        @keyframes dots {
+
+            0%,
+            20% {
+                content: '';
+            }
+
+            40% {
+                content: '.';
+            }
+
+            60% {
+                content: '..';
+            }
+
+            80%,
+            100% {
+                content: '...';
+            }
+        }
+
+        .error-message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255, 0, 0, 0.9);
+            color: white;
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+            z-index: 300;
+            border: 2px solid #ff4444;
+        }
+
+        /* 響應式設計 */
+        @media (max-width: 768px) {
+            #ui {
+                font-size: 12px;
+                padding: 10px;
+            }
+
+            .inventory-slot {
+                width: 60px;
+                height: 60px;
+            }
+
+            .menu-container {
+                padding: 20px;
+                max-width: 90%;
+            }
+
+            .menu-container h2 {
+                font-size: 2em;
+            }
+
+            #minimap {
+                width: 120px;
+                height: 120px;
+            }
+
+            #chatContainer {
+                width: 300px;
+                height: 150px;
+            }
+
+            .status-message {
+                background: rgba(0, 255, 136, 0.1);
+                border: 1px solid #00ff88;
+                padding: 10px;
+                border-radius: 5px;
+                color: #00ff88;
+                text-align: center;
+                font-size: 14px;
+            }
+
+            .status-message.error {
+                background: rgba(255, 0, 0, 0.1);
+                border-color: #ff4444;
+                color: #ff4444;
+            }
+        }
+    </style>
+    </head>
+
+    <body>
+        <script>
+            // 多人遊戲網路管理類別
+            class WebRTCMultiplayerManager {
+                constructor() {
+                    this.isHost = false;
+                    this.isConnected = false;
+                    this.roomId = null;
+                    this.playerId = null;
+                    this.playerName = '';
+                    this.peers = new Map(); // 存儲其他玩家的連接
+                    this.otherPlayers = new Map();
+                    this.callbacks = {
+                        onPlayerJoin: null,
+                        onPlayerLeave: null,
+                        onPlayerMove: null,
+                        onBlockUpdate: null,
+                        onChatMessage: null,
+                        onRoomUpdate: null
+                    };
+
+                    // 使用免費的信令伺服器（實際部署時應該使用自己的）
+                    this.signalingServer = 'wss://socketsbay.com/wss/v2/1/demo/';
+                    this.signalingSocket = null;
+                }
+
+                setCallback(event, callback) {
+                    this.callbacks[event] = callback;
+                }
+
+                async connectToRoom(roomId, playerName) {
+                    return new Promise((resolve, reject) => {
+                        try {
+                            this.roomId = roomId || this.generateRoomId();
+                            this.playerName = playerName || 'Player';
+                            this.playerId = this.generatePlayerId();
+                            this.isHost = !roomId; // 如果沒有提供房間ID，則為主機
+
+                            // 模擬連接過程（因為實際的WebRTC需要信令伺服器）
+                            setTimeout(() => {
+                                this.isConnected = true;
+                                console.log(`已連接到房間: ${this.roomId}, 玩家ID: ${this.playerId}`);
+
+                                if (this.callbacks.onRoomUpdate) {
+                                    this.callbacks.onRoomUpdate({
+                                        roomId: this.roomId,
+                                        players: [{
+                                            id: this.playerId,
+                                            name: this.playerName,
+                                            isHost: this.isHost
+                                        }]
+                                    });
+                                }
+
+                                // 確保返回正確的結果對象
+                                resolve({
+                                    roomId: this.roomId,
+                                    playerId: this.playerId,
+                                    isHost: this.isHost,
+                                    success: true
+                                });
+                            }, 1000);
+
+                        } catch (error) {
+                            reject(error);
+                        }
+                    });
+                }
+
+                async connectSignalingServer() {
+                    return new Promise((resolve, reject) => {
+                        try {
+                            this.signalingSocket = new WebSocket(this.signalingServer);
+
+                            this.signalingSocket.onopen = () => {
+                                console.log('信令伺服器連接成功');
+
+                                // 加入房間
+                                this.signalingSocket.send(JSON.stringify({
+                                    type: 'join-room',
+                                    roomId: this.roomId,
+                                    playerId: this.playerId,
+                                    playerName: this.playerName,
+                                    isHost: this.isHost
+                                }));
+
+                                resolve();
+                            };
+
+                            this.signalingSocket.onmessage = (event) => {
+                                this.handleSignalingMessage(JSON.parse(event.data));
+                            };
+
+                            this.signalingSocket.onerror = (error) => {
+                                console.error('信令伺服器錯誤:', error);
+                                reject(error);
+                            };
+
+                            this.signalingSocket.onclose = () => {
+                                console.log('信令伺服器連接關閉');
+                            };
+
+                        } catch (error) {
+                            reject(error);
+                        }
+                    });
+                }
+
+                handleSignalingMessage(message) {
+                    switch (message.type) {
+                        case 'player-joined':
+                            this.handlePlayerJoined(message);
+                            break;
+                        case 'player-left':
+                            this.handlePlayerLeft(message);
+                            break;
+                        case 'webrtc-offer':
+                            this.handleWebRTCOffer(message);
+                            break;
+                        case 'webrtc-answer':
+                            this.handleWebRTCAnswer(message);
+                            break;
+                        case 'webrtc-ice-candidate':
+                            this.handleICECandidate(message);
+                            break;
+                    }
+                }
+
+                handlePlayerJoined(message) {
+                    if (message.playerId === this.playerId) return;
+
+                    console.log(`玩家 ${message.playerName} 加入房間`);
+
+                    // 如果是主機，創建WebRTC連接
+                    if (this.isHost) {
+                        this.createPeerConnection(message.playerId, message.playerName, true);
+                    }
+
+                    if (this.callbacks.onPlayerJoin) {
+                        this.callbacks.onPlayerJoin({
+                            id: message.playerId,
+                            name: message.playerName
+                        });
+                    }
+                }
+
+                createPeerConnection(peerId, peerName, initiator = false) {
+                    const peer = new SimplePeer({
+                        initiator: initiator,
+                        trickle: false
+                    });
+
+                    peer.on('signal', (data) => {
+                        // 發送WebRTC信令數據
+                        this.signalingSocket.send(JSON.stringify({
+                            type: initiator ? 'webrtc-offer' : 'webrtc-answer',
+                            roomId: this.roomId,
+                            fromPlayerId: this.playerId,
+                            toPlayerId: peerId,
+                            signalData: data
+                        }));
+                    });
+
+                    peer.on('connect', () => {
+                        console.log(`與玩家 ${peerName} 建立P2P連接`);
+                        this.otherPlayers.set(peerId, {
+                            id: peerId,
+                            name: peerName,
+                            x: 0, y: 10, z: 0,
+                            angle: 0, pitch: 0
+                        });
+                    });
+
+                    peer.on('data', (data) => {
+                        this.handlePeerData(peerId, JSON.parse(data.toString()));
+                    });
+
+                    peer.on('error', (error) => {
+                        console.error(`P2P連接錯誤 (${peerName}):`, error);
+                    });
+
+                    this.peers.set(peerId, peer);
+                }
+
+                handleWebRTCOffer(message) {
+                    if (message.toPlayerId !== this.playerId) return;
+
+                    this.createPeerConnection(message.fromPlayerId, 'Unknown', false);
+                    const peer = this.peers.get(message.fromPlayerId);
+                    peer.signal(message.signalData);
+                }
+
+                handleWebRTCAnswer(message) {
+                    if (message.toPlayerId !== this.playerId) return;
+
+                    const peer = this.peers.get(message.fromPlayerId);
+                    if (peer) {
+                        peer.signal(message.signalData);
+                    }
+                }
+
+                handlePeerData(peerId, data) {
+                    switch (data.type) {
+                        case 'playerUpdate':
+                            if (this.callbacks.onPlayerMove) {
+                                this.callbacks.onPlayerMove(data);
+                            }
+                            break;
+                        case 'blockUpdate':
+                            if (this.callbacks.onBlockUpdate) {
+                                this.callbacks.onBlockUpdate(data);
+                            }
+                            break;
+                        case 'chatMessage':
+                            if (this.callbacks.onChatMessage) {
+                                this.callbacks.onChatMessage(data);
+                            }
+                            break;
+                    }
+                }
+
+                sendPlayerUpdate(playerData) {
+                    if (!this.isConnected) return;
+
+                    const updateData = {
+                        type: 'playerUpdate',
+                        playerId: this.playerId,
+                        playerName: this.playerName,
+                        x: playerData.x,
+                        y: playerData.y,
+                        z: playerData.z,
+                        angle: playerData.angle,
+                        pitch: playerData.pitch,
+                        timestamp: Date.now()
+                    };
+
+                    this.broadcastToPeers(updateData);
+                }
+
+                sendBlockUpdate(x, y, z, blockType, action) {
+                    if (!this.isConnected) return;
+
+                    const blockData = {
+                        type: 'blockUpdate',
+                        playerId: this.playerId,
+                        x: x, y: y, z: z,
+                        blockType: blockType,
+                        action: action,
+                        timestamp: Date.now()
+                    };
+
+                    this.broadcastToPeers(blockData);
+                }
+
+                sendChatMessage(message) {
+                    if (!this.isConnected || !message.trim()) return;
+
+                    const chatData = {
+                        type: 'chatMessage',
+                        playerId: this.playerId,
+                        playerName: this.playerName,
+                        message: message.trim(),
+                        timestamp: Date.now()
+                    };
+
+                    this.broadcastToPeers(chatData);
+                }
+
+                broadcastToPeers(data) {
+                    this.peers.forEach((peer, peerId) => {
+                        if (peer.connected) {
+                            try {
+                                peer.send(JSON.stringify(data));
+                            } catch (error) {
+                                console.error(`發送數據到 ${peerId} 失敗:`, error);
+                            }
+                        }
+                    });
+                }
+
+                disconnect() {
+                    if (this.signalingSocket) {
+                        this.signalingSocket.close();
+                    }
+
+                    this.peers.forEach(peer => peer.destroy());
+                    this.peers.clear();
+                    this.otherPlayers.clear();
+                    this.isConnected = false;
+                }
+
+                getOtherPlayers() {
+                    return Array.from(this.otherPlayers.values());
+                }
+
+                getConnectionStatus() {
+                    return {
+                        isConnected: this.isConnected,
+                        roomId: this.roomId,
+                        playerId: this.playerId,
+                        playerName: this.playerName,
+                        playerCount: this.peers.size + 1,
+                        isHost: this.isHost
+                    };
+                }
+
+                generateRoomId() {
+                    return Math.random().toString(36).substr(2, 6).toUpperCase();
+                }
+
+                generatePlayerId() {
+                    return 'player_' + Math.random().toString(36).substr(2, 9);
+                }
+            }
+
+            // 聊天系統類別
+            class ChatSystem {
+                constructor() {
+                    this.messages = [];
+                    this.maxMessages = 50;
+                    this.isVisible = false;
+                    this.isInputActive = false;
+                }
+
+                // 顯示聊天介面
+                show() {
+                    this.isVisible = true;
+                    document.getElementById('chatContainer').style.display = 'flex';
+                }
+
+                // 隱藏聊天介面
+                hide() {
+                    this.isVisible = false;
+                    this.isInputActive = false;
+                    document.getElementById('chatContainer').style.display = 'none';
+                    document.getElementById('messageInput').blur();
+                }
+
+                // 切換聊天介面
+                toggle() {
+                    if (this.isVisible) {
+                        this.hide();
+                    } else {
+                        this.show();
+                    }
+                }
+
+                // 激活輸入框
+                activateInput() {
+                    this.show();
+                    this.isInputActive = true;
+                    const input = document.getElementById('messageInput');
+                    input.focus();
+                    input.placeholder = '輸入訊息...';
+                }
+
+                // 添加訊息
+                addMessage(playerName, message, type = 'player') {
+                    const messageObj = {
+                        playerName: playerName,
+                        message: message,
+                        type: type,
+                        timestamp: Date.now()
+                    };
+
+                    this.messages.push(messageObj);
+
+                    // 限制訊息數量
+                    if (this.messages.length > this.maxMessages) {
+                        this.messages.shift();
+                    }
+
+                    this.updateDisplay();
+                }
+
+                // 添加系統訊息
+                addSystemMessage(message) {
+                    this.addMessage('系統', message, 'system');
+                }
+
+                // 更新顯示
+                updateDisplay() {
+                    const container = document.getElementById('chatMessages');
+                    container.innerHTML = '';
+
+                    this.messages.forEach(msg => {
+                        const messageDiv = document.createElement('div');
+                        messageDiv.className = `chat-message ${msg.type}`;
+
+                        if (msg.type === 'system') {
+                            messageDiv.textContent = `[系統] ${msg.message}`;
+                        } else {
+                            messageDiv.innerHTML = `<strong>${msg.playerName}:</strong> ${msg.message}`;
+                        }
+
+                        container.appendChild(messageDiv);
+                    });
+
+                    // 滾動到底部
+                    container.scrollTop = container.scrollHeight;
+                }
+
+                // 發送訊息
+                sendMessage(message, multiplayerManager) {
+                    if (!message.trim()) return false;
+
+                    if (multiplayerManager && multiplayerManager.isConnected) {
+                        multiplayerManager.sendChatMessage(message);
+                    } else {
+                        // 單人模式下直接添加訊息
+                        this.addMessage('你', message);
+                    }
+
+                    return true;
+                }
+            }
+
+            // WebGL Minecraft 主遊戲類別
+            class WebGLMinecraft {
+                constructor() {
+                    this.canvas = document.getElementById('gameCanvas');
+                    this.canvas.width = window.innerWidth;
+                    this.canvas.height = window.innerHeight;
+
+                    // 初始化WebGL
+                    this.gl = this.canvas.getContext('webgl') || this.canvas.getContext('experimental-webgl');
+                    if (!this.gl) {
+                        this.showError('您的瀏覽器不支援WebGL！');
+                        return;
+                    }
+
+                    // 小地圖Canvas
+                    this.minimapCanvas = document.getElementById('minimap');
+                    this.minimapCtx = this.minimapCanvas.getContext('2d');
+                    this.minimapCanvas.width = 180;
+                    this.minimapCanvas.height = 180;
+
+                    // 多人遊戲和聊天系統
+                    // 多人遊戲和聊天系統
+                    this.multiplayerManager = new WebRTCMultiplayerManager();
+                    this.chatSystem = new ChatSystem();
+                    this.isMultiplayer = false;
+
+                    // 性能計數器
+                    this.frameCount = 0;
+                    this.lastFrameTime = 0;
+                    this.fps = 60;
+                    this.triangleCount = 0;
+                    this.vertexCount = 0;
+                    this.drawCalls = 0;
+
+                    // 遊戲狀態
+                    this.gameStarted = false;
+                    this.worldGenerated = false;
+                    this.flying = false;
+                    this.isPaused = false;
+
+                    // 玩家
+                    this.player = {
+                        x: 0, y: 10, z: 0,
+                        angle: 0, pitch: 0,
+                        velocity: { x: 0, y: 0, z: 0 },
+                        onGround: false
+                    };
+
+                    // 其他玩家渲染數據
+                    this.otherPlayers = new Map();
+
+                    // 世界設定
+                    this.world = new Map();
+                    this.worldSize = 64;
+                    this.renderDistance = 24;
+                    this.gravity = -0.02;
+                    this.jumpPower = 0.4;
+
+                    // 方塊類型
+                    this.blockTypes = {
+                        grass: {
+                            colors: {
+                                top: [0.3, 0.8, 0.2],
+                                side: [0.4, 0.5, 0.2],
+                                bottom: [0.3, 0.2, 0.1]
+                            },
+                            id: 1
+                        },
+                        stone: {
+                            colors: {
+                                top: [0.8, 0.8, 0.8],
+                                side: [0.6, 0.6, 0.6],
+                                bottom: [0.4, 0.4, 0.4]
+                            },
+                            id: 2
+                        },
+                        wood: {
+                            colors: {
+                                top: [0.7, 0.5, 0.2],
+                                side: [0.4, 0.2, 0.1],
+                                bottom: [0.7, 0.5, 0.2]
+                            },
+                            id: 3
+                        },
+                        water: {
+                            colors: {
+                                top: [0.3, 0.6, 1.0],
+                                side: [0.2, 0.5, 0.9],
+                                bottom: [0.1, 0.4, 0.8]
+                            },
+                            id: 4,
+                            transparent: true
+                        }
+                    };
+
+                    this.selectedBlock = 'grass';
+                    this.keys = {};
+                    this.mouse = { locked: false };
+
+                    // WebGL資源
+                    this.shaderProgram = null;
+                    this.buffers = {};
+                    this.uniforms = {};
+                    this.attributes = {};
+
+                    // 渲染數據
+                    this.vertices = [];
+                    this.indices = [];
+                    this.colors = [];
+                    this.normals = [];
+                    this.chunkMeshes = new Map();
+
+                    // 矩陣
+                    this.projectionMatrix = this.createMat4();
+                    this.viewMatrix = this.createMat4();
+                    this.modelMatrix = this.createMat4();
+
+                    // 設定多人遊戲回調
+                    this.setupMultiplayerCallbacks();
+                    this.showMainMenu();
+                    this.initializeWebGL();
+                }
+
+                showMainMenu() {
+                    document.getElementById('instructions').style.display = 'flex';
+                    document.getElementById('pauseMenu').style.display = 'none';
+                    document.getElementById('multiplayerMenu').style.display = 'none';
+                    document.getElementById('loading').style.display = 'none';
+                    document.getElementById('chatContainer').style.display = 'none';
+                }
+
+                // 啟動多人遊戲
+                startMultiplayerGame() {
+                    if (!this.worldGenerated) {
+                        alert('世界還在生成中，請稍候...');
+                        return;
+                    }
+
+                    if (!this.multiplayerManager.isConnected) {
+                        alert('尚未連接到房間，請先創建或加入房間');
+                        return;
+                    }
+
+                    this.isMultiplayer = true;
+                    this.gameStarted = true;
+                    this.isPaused = false;
+
+                    // 隱藏所有選單
+                    document.getElementById('instructions').style.display = 'none';
+                    document.getElementById('pauseMenu').style.display = 'none';
+                    document.getElementById('multiplayerMenu').style.display = 'none';
+
+                    // 將玩家放置在安全位置
+                    this.player.x = Math.random() * 10 - 5; // 隨機位置避免重疊
+                    this.player.z = Math.random() * 10 - 5;
+                    this.player.y = Math.max(5, this.getHighestBlock(this.player.x, this.player.z) + 3);
+
+                    // 顯示聊天系統
+                    this.chatSystem.show();
+                    this.chatSystem.addSystemMessage('多人遊戲開始！按T鍵聊天');
+                    this.chatSystem.addSystemMessage(`你的位置: (${this.player.x.toFixed(1)}, ${this.player.y.toFixed(1)}, ${this.player.z.toFixed(1)})`);
+
+                    console.log(`多人遊戲已啟動！玩家位置: (${this.player.x}, ${this.player.y}, ${this.player.z})`);
+                    console.log(`房間ID: ${this.multiplayerManager.roomId}`);
+                }
+
+                // 設定多人遊戲回調函數
+                setupMultiplayerCallbacks() {
+                    this.multiplayerManager.setCallback('onPlayerJoin', (player) => {
+                        this.chatSystem.addSystemMessage(`${player.name} 加入了遊戲`);
+                        this.otherPlayers.set(player.id, player);
+                        this.updateConnectionUI();
+                    });
+
+                    this.multiplayerManager.setCallback('onPlayerLeave', (player) => {
+                        this.chatSystem.addSystemMessage(`${player.name} 離開了遊戲`);
+                        this.otherPlayers.delete(player.id);
+                        this.updateConnectionUI();
+                    });
+
+                    this.multiplayerManager.setCallback('onPlayerMove', (data) => {
+                        if (data.playerId !== this.multiplayerManager.playerId) {
+                            this.otherPlayers.set(data.playerId, {
+                                id: data.playerId,
+                                name: data.playerName,
+                                x: data.x,
+                                y: data.y,
+                                z: data.z,
+                                angle: data.angle,
+                                pitch: data.pitch
+                            });
+                        }
+                    });
+
+                    this.multiplayerManager.setCallback('onBlockUpdate', (data) => {
+                        if (data.action === 'place') {
+                            this.setBlock(data.x, data.y, data.z, data.blockType);
+                            this.chatSystem.addSystemMessage(`${this.getPlayerName(data.playerId)} 放置了方塊`);
+                        } else if (data.action === 'break') {
+                            this.removeBlock(data.x, data.y, data.z);
+                            this.chatSystem.addSystemMessage(`${this.getPlayerName(data.playerId)} 破壞了方塊`);
+                        }
+                        this.regenerateNearbyChunks(data.x, data.y, data.z);
+                    });
+
+                    this.multiplayerManager.setCallback('onChatMessage', (data) => {
+                        this.chatSystem.addMessage(data.playerName, data.message);
+                    });
+
+                    this.multiplayerManager.setCallback('onRoomUpdate', (data) => {
+                        this.updateRoomInfo(data);
+                    });
+                }
+
+                // 獲取玩家名稱
+                getPlayerName(playerId) {
+                    if (playerId === this.multiplayerManager.playerId) {
+                        return '你';
+                    }
+                    const player = this.otherPlayers.get(playerId);
+                    return player ? player.name : '未知玩家';
+                }
+
+                // 更新連線UI
+                updateConnectionUI() {
+                    const status = this.multiplayerManager.getConnectionStatus();
+                    document.getElementById('connectionStatus').textContent =
+                        status.isConnected ? `房間 ${status.roomId}` : '離線';
+                    document.getElementById('playerCount').textContent = status.playerCount;
+
+                    // 更新P2P狀態
+                    const p2pCount = this.multiplayerManager.peers ? this.multiplayerManager.peers.size : 0;
+                    document.getElementById('p2pStatus').textContent =
+                        p2pCount > 0 ? `${p2pCount} 個連接` : '未連接';
+                }
+
+                // 更新房間資訊
+                updateRoomInfo(data) {
+                    document.getElementById('currentRoomId').textContent = data.roomId;
+                    document.getElementById('roomPlayerCount').textContent = data.players.length;
+
+                    const playerList = document.getElementById('playerList');
+                    playerList.innerHTML = '';
+
+                    data.players.forEach(player => {
+                        const playerDiv = document.createElement('div');
+                        playerDiv.className = 'player-item';
+                        playerDiv.textContent = `${player.name} ${player.isHost ? '(主機)' : ''}`;
+                        playerList.appendChild(playerDiv);
+                    });
+
+                    // 更新開始遊戲按鈕狀態
+                    const startButton = document.getElementById('startGameButton');
+                    if (startButton) {
+                        startButton.textContent = this.gameStarted ? '🎮 返回遊戲' : '🎮 開始遊戲';
+                    }
+                }
+
+                // 簡化的4x4矩陣創建
+                createMat4() {
+                    return new Float32Array(16);
+                }
+
+                // 透視投影矩陣
+                perspective(out, fovy, aspect, near, far) {
+                    const f = 1.0 / Math.tan(fovy / 2);
+                    out[0] = f / aspect;
+                    out[1] = 0;
+                    out[2] = 0;
+                    out[3] = 0;
+                    out[4] = 0;
+                    out[5] = f;
+                    out[6] = 0;
+                    out[7] = 0;
+                    out[8] = 0;
+                    out[9] = 0;
+                    out[10] = (far + near) / (near - far);
+                    out[11] = -1;
+                    out[12] = 0;
+                    out[13] = 0;
+                    out[14] = (2 * far * near) / (near - far);
+                    out[15] = 0;
+                }
+
+                // 視圖矩陣
+                lookAt(out, eye, center, up) {
+                    const eyex = eye[0], eyey = eye[1], eyez = eye[2];
+                    const centerx = center[0], centery = center[1], centerz = center[2];
+                    const upx = up[0], upy = up[1], upz = up[2];
+
+                    const z0 = eyex - centerx, z1 = eyey - centery, z2 = eyez - centerz;
+                    let len = 1 / Math.sqrt(z0 * z0 + z1 * z1 + z2 * z2);
+                    const nz0 = z0 * len, nz1 = z1 * len, nz2 = z2 * len;
+
+                    const x0 = upy * nz2 - upz * nz1;
+                    const x1 = upz * nz0 - upx * nz2;
+                    const x2 = upx * nz1 - upy * nz0;
+                    len = 1 / Math.sqrt(x0 * x0 + x1 * x1 + x2 * x2);
+                    const nx0 = x0 * len, nx1 = x1 * len, nx2 = x2 * len;
+
+                    const y0 = nz1 * nx2 - nz2 * nx1;
+                    const y1 = nz2 * nx0 - nz0 * nx2;
+                    const y2 = nz0 * nx1 - nz1 * nx0;
+
+                    out[0] = nx0; out[1] = y0; out[2] = nz0; out[3] = 0;
+                    out[4] = nx1; out[5] = y1; out[6] = nz1; out[7] = 0;
+                    out[8] = nx2; out[9] = y2; out[10] = nz2; out[11] = 0;
+                    out[12] = -(nx0 * eyex + nx1 * eyey + nx2 * eyez);
+                    out[13] = -(y0 * eyex + y1 * eyey + y2 * eyez);
+                    out[14] = -(nz0 * eyex + nz1 * eyey + nz2 * eyez);
+                    out[15] = 1;
+                }
+
+                // 單位矩陣
+                identity(out) {
+                    out[0] = 1; out[1] = 0; out[2] = 0; out[3] = 0;
+                    out[4] = 0; out[5] = 1; out[6] = 0; out[7] = 0;
+                    out[8] = 0; out[9] = 0; out[10] = 1; out[11] = 0;
+                    out[12] = 0; out[13] = 0; out[14] = 0; out[15] = 1;
+                }
+
+                async initializeWebGL() {
+                    try {
+                        this.showLoading();
+                        await this.setupShaders();
+                        this.setupBuffers();
+                        this.setupMatrices();
+                        this.setupEventListeners();
+                        await this.generateWorld();
+                        this.hideLoading();
+                        this.gameLoop();
+                    } catch (error) {
+                        this.showError('WebGL初始化失敗: ' + error.message);
+                    }
+                }
+
+                async setupShaders() {
+                    // 頂點著色器
+                    const vertexShaderSource = `
+        attribute vec3 aPosition;
+        attribute vec3 aColor;
+        attribute vec3 aNormal;
+        
+        uniform mat4 uProjectionMatrix;
+        uniform mat4 uViewMatrix;
+        uniform mat4 uModelMatrix;
+        uniform vec3 uLightDirection;
+        uniform vec3 uAmbientLight;
+        
+        varying vec3 vColor;
+        varying float vLighting;
+        
+        void main() {
+            vec4 worldPosition = uModelMatrix * vec4(aPosition, 1.0);
+            gl_Position = uProjectionMatrix * uViewMatrix * worldPosition;
+            
+            // 計算光照
+            vec3 normal = normalize((uModelMatrix * vec4(aNormal, 0.0)).xyz);
+            float directional = max(dot(normal, normalize(uLightDirection)), 0.0);
+            vLighting = uAmbientLight.x + directional * 0.7;
+            
+            vColor = aColor;
+        }
+    `;
+
+                    // 片段著色器
+                    const fragmentShaderSource = `
+        precision mediump float;
+        
+        varying vec3 vColor;
+        varying float vLighting;
+        
+        void main() {
+            // 添加環境光和漫反射光照
+            vec3 ambient = vColor * 0.3;
+            vec3 diffuse = vColor * vLighting * 0.7;
+            vec3 finalColor = ambient + diffuse;
+            
+            // 添加輕微的霧效果
+            float fogFactor = clamp(gl_FragCoord.z * 2.0, 0.0, 1.0);
+            vec3 fogColor = vec3(0.7, 0.8, 0.9);
+            finalColor = mix(finalColor, fogColor, fogFactor * 0.3);
+            
+            gl_FragColor = vec4(finalColor, 1.0);
+        }
+    `;
+
+                    // 編譯著色器
+                    const vertexShader = this.compileShader(vertexShaderSource, this.gl.VERTEX_SHADER);
+                    const fragmentShader = this.compileShader(fragmentShaderSource, this.gl.FRAGMENT_SHADER);
+
+                    // 創建程序
+                    this.shaderProgram = this.gl.createProgram();
+                    this.gl.attachShader(this.shaderProgram, vertexShader);
+                    this.gl.attachShader(this.shaderProgram, fragmentShader);
+                    this.gl.linkProgram(this.shaderProgram);
+
+                    if (!this.gl.getProgramParameter(this.shaderProgram, this.gl.LINK_STATUS)) {
+                        throw new Error('著色器程序鏈接失敗: ' + this.gl.getProgramInfoLog(this.shaderProgram));
+                    }
+
+                    this.gl.useProgram(this.shaderProgram);
+
+                    // 獲取屬性和統一變量位置
+                    this.attributes = {
+                        position: this.gl.getAttribLocation(this.shaderProgram, 'aPosition'),
+                        color: this.gl.getAttribLocation(this.shaderProgram, 'aColor'),
+                        normal: this.gl.getAttribLocation(this.shaderProgram, 'aNormal')
+                    };
+
+                    this.uniforms = {
+                        projectionMatrix: this.gl.getUniformLocation(this.shaderProgram, 'uProjectionMatrix'),
+                        viewMatrix: this.gl.getUniformLocation(this.shaderProgram, 'uViewMatrix'),
+                        modelMatrix: this.gl.getUniformLocation(this.shaderProgram, 'uModelMatrix'),
+                        lightDirection: this.gl.getUniformLocation(this.shaderProgram, 'uLightDirection'),
+                        ambientLight: this.gl.getUniformLocation(this.shaderProgram, 'uAmbientLight')
+                    };
+                }
+
+                compileShader(source, type) {
+                    const shader = this.gl.createShader(type);
+                    this.gl.shaderSource(shader, source);
+                    this.gl.compileShader(shader);
+
+                    if (!this.gl.getShaderParameter(shader, this.gl.COMPILE_STATUS)) {
+                        const error = this.gl.getShaderInfoLog(shader);
+                        this.gl.deleteShader(shader);
+                        throw new Error('著色器編譯失敗: ' + error);
+                    }
+
+                    return shader;
+                }
+
+                setupBuffers() {
+                    // 頂點緩衝區
+                    this.buffers.position = this.gl.createBuffer();
+                    this.buffers.color = this.gl.createBuffer();
+                    this.buffers.normal = this.gl.createBuffer();
+                    this.buffers.index = this.gl.createBuffer();
+                }
+
+                setupMatrices() {
+                    // 投影矩陣
+                    const aspect = this.canvas.width / this.canvas.height;
+                    this.perspective(this.projectionMatrix, Math.PI / 4, aspect, 0.1, 1000.0);
+
+                    // 設置WebGL狀態
+                    this.gl.enable(this.gl.DEPTH_TEST);
+                    this.gl.depthFunc(this.gl.LESS);
+                    this.gl.depthMask(true);
+
+                    // 面剔除設置
+                    this.gl.enable(this.gl.CULL_FACE);
+                    this.gl.cullFace(this.gl.BACK);
+                    this.gl.frontFace(this.gl.CCW);
+
+                    // 禁用混合模式
+                    this.gl.disable(this.gl.BLEND);
+
+                    // 設置清空值
+                    this.gl.clearColor(0.5, 0.7, 1.0, 1.0);
+                    this.gl.clearDepth(1.0);
+
+                    // 設置視口
+                    this.gl.viewport(0, 0, this.canvas.width, this.canvas.height);
+                }
+
+                // 離開房間
+                leaveRoom() {
+                    if (this.multiplayerManager.isConnected) {
+                        this.multiplayerManager.disconnect();
+                        this.chatSystem.addSystemMessage('已離開房間');
+                    }
+
+                    this.isMultiplayer = false;
+                    document.getElementById('roomInfo').style.display = 'none';
+                    document.getElementById('roomId').value = '';
+                    this.updateConnectionUI();
+
+                    // 清除其他玩家
+                    this.otherPlayers.clear();
+
+                    // 清除玩家名牌
+                    document.getElementById('playerNameTags').innerHTML = '';
+                }
+
+                showLoading() {
+                    document.getElementById('loading').style.display = 'block';
+                }
+
+                hideLoading() {
+                    document.getElementById('loading').style.display = 'none';
+                }
+
+                showError(message) {
+                    const errorDiv = document.createElement('div');
+                    errorDiv.className = 'error-message';
+                    errorDiv.innerHTML = `
+            <h3>❌ 錯誤</h3>
+            <p>${message}</p>
+            <button onclick="location.reload()">重新載入</button>
+        `;
+                    document.body.appendChild(errorDiv);
+                }
+
+                // 暫停/恢復遊戲
+                pauseGame() {
+                    this.isPaused = true;
+                    document.getElementById('pauseMenu').style.display = 'flex';
+                    if (this.mouse.locked) {
+                        document.exitPointerLock();
+                    }
+                }
+
+                resumeGame() {
+                    this.isPaused = false;
+                    document.getElementById('pauseMenu').style.display = 'none';
+                    document.getElementById('multiplayerMenu').style.display = 'none';
+                    if (this.gameStarted) {
+                        this.canvas.requestPointerLock();
+                    }
+                }
+
+                // 顯示多人遊戲選單
+                showMultiplayerMenu() {
+                    document.getElementById('pauseMenu').style.display = 'none';
+                    document.getElementById('multiplayerMenu').style.display = 'flex';
+
+                    // 設定預設玩家名稱
+                    const playerNameInput = document.getElementById('playerName');
+                    if (!playerNameInput.value) {
+                        playerNameInput.value = 'Player' + Math.floor(Math.random() * 1000);
+                    }
+                }
+
+                // 返回主選單
+                returnToMainMenu() {
+                    this.gameStarted = false;
+                    this.isPaused = false;
+                    this.isMultiplayer = false;
+
+                    // 斷開多人連接
+                    if (this.multiplayerManager.isConnected) {
+                        this.multiplayerManager.disconnect();
+                    }
+
+                    // 隱藏所有選單
+                    document.getElementById('pauseMenu').style.display = 'none';
+                    document.getElementById('multiplayerMenu').style.display = 'none';
+                    document.getElementById('instructions').style.display = 'flex';
+
+                    // 隱藏聊天
+                    this.chatSystem.hide();
+
+                    // 釋放滑鼠鎖定
+                    if (this.mouse.locked) {
+                        document.exitPointerLock();
+                    }
+
+                    // 重置玩家位置
+                    this.player = {
+                        x: 0, y: 10, z: 0,
+                        angle: 0, pitch: 0,
+                        velocity: { x: 0, y: 0, z: 0 },
+                        onGround: false
+                    };
+
+                    this.otherPlayers.clear();
+                    this.updateConnectionUI();
+                }
+
+                // 加入房間
+                // 加入房間
+                async joinRoom() {
+                    const playerName = document.getElementById('playerName').value.trim();
+                    const roomId = document.getElementById('roomId').value.trim();
+
+                    if (!playerName) {
+                        alert('請輸入玩家名稱');
+                        return;
+                    }
+
+                    if (!roomId) {
+                        alert('請輸入房間ID');
+                        return;
+                    }
+
+                    try {
+                        // 顯示載入狀態
+                        const joinButton = document.getElementById('joinRoomButton');
+                        const originalText = joinButton.textContent;
+                        joinButton.textContent = '加入中...';
+                        joinButton.disabled = true;
+
+                        const connectionResult = await this.multiplayerManager.connectToRoom(roomId, playerName);
+                        this.isMultiplayer = true;
+
+                        document.getElementById('roomInfo').style.display = 'block';
+                        this.updateConnectionUI();
+
+                        this.chatSystem.addSystemMessage(`已加入房間 ${connectionResult.roomId}`);
+                        this.chatSystem.addSystemMessage(`正在建立P2P連接...`);
+
+                        // 恢復按鈕狀態
+                        joinButton.textContent = originalText;
+                        joinButton.disabled = false;
+
+                        // 在 joinRoom() 的 try 塊最後添加：
+                        this.chatSystem.addSystemMessage(`已加入房間 ${connectionResult.roomId}`);
+                        this.chatSystem.addSystemMessage(`正在建立P2P連接...`);
+                        this.chatSystem.addSystemMessage(`點擊"開始遊戲"來進入世界`);
+
+                    } catch (error) {
+                        console.error('加入房間失敗:', error);
+                        alert('加入房間失敗: ' + error.message);
+
+                        // 恢復按鈕狀態
+                        const joinButton = document.getElementById('joinRoomButton');
+                        joinButton.textContent = '🚪 加入房間';
+                        joinButton.disabled = false;
+                    }
+                }
+
+                // 創建房間
+                // 創建房間
+                async createRoom() {
+                    const playerName = document.getElementById('playerName').value.trim();
+
+                    if (!playerName) {
+                        alert('請輸入玩家名稱');
+                        return;
+                    }
+
+                    try {
+                        // 顯示載入狀態
+                        const createButton = document.getElementById('createRoomButton');
+                        const originalText = createButton.textContent;
+                        createButton.textContent = '創建中...';
+                        createButton.disabled = true;
+
+                        const connectionResult = await this.multiplayerManager.connectToRoom(null, playerName);
+                        this.isMultiplayer = true;
+
+                        document.getElementById('roomId').value = connectionResult.roomId;
+                        document.getElementById('roomInfo').style.display = 'block';
+                        this.updateConnectionUI();
+
+                        this.chatSystem.addSystemMessage(`房間已創建！`);
+                        this.chatSystem.addSystemMessage(`房間ID: ${connectionResult.roomId}`);
+                        this.chatSystem.addSystemMessage(`分享此ID給朋友來加入遊戲！`);
+
+                        // 恢復按鈕狀態
+                        createButton.textContent = originalText;
+                        createButton.disabled = false;
+
+                        // 在 createRoom() 的 try 塊最後添加：
+                        this.chatSystem.addSystemMessage(`房間已創建！`);
+                        this.chatSystem.addSystemMessage(`房間ID: ${connectionResult.roomId}`);
+                        this.chatSystem.addSystemMessage(`分享此ID給朋友來加入遊戲！`);
+                        this.chatSystem.addSystemMessage(`點擊"開始遊戲"來進入世界`);
+
+                    } catch (error) {
+                        console.error('創建房間失敗:', error);
+                        alert('創建房間失敗: ' + error.message);
+
+                        // 恢復按鈕狀態
+                        const createButton = document.getElementById('createRoomButton');
+                        createButton.textContent = '➕ 創建房間';
+                        createButton.disabled = false;
+                    }
+                }
+
+                // 設置按鈕載入狀態
+                setButtonLoading(buttonId, loading, loadingText = '處理中...') {
+                    const button = document.getElementById(buttonId);
+                    if (!button) return;
+
+                    if (loading) {
+                        button.dataset.originalText = button.textContent;
+                        button.textContent = loadingText;
+                        button.disabled = true;
+                    } else {
+                        button.textContent = button.dataset.originalText || button.textContent;
+                        button.disabled = false;
+                    }
+                }
+
+                // 顯示狀態訊息
+                showStatusMessage(message, isError = false) {
+                    const statusDiv = document.getElementById('connectionStatus');
+                    const statusText = document.getElementById('statusText');
+                    const messageDiv = statusDiv.querySelector('.status-message');
+
+                    if (statusDiv && statusText) {
+                        statusText.textContent = message;
+                        messageDiv.className = isError ? 'status-message error' : 'status-message';
+                        statusDiv.style.display = 'block';
+
+                        // 3秒後自動隱藏
+                        setTimeout(() => {
+                            statusDiv.style.display = 'none';
+                        }, 3000);
+                    }
+                }
+
+                setupEventListeners() {
+                    // 主選單按鈕
+                    document.getElementById('singlePlayerButton').addEventListener('click', () => {
+                        this.isMultiplayer = false;
+                        this.startGame();
+                    });
+
+                    // 開始遊戲按鈕
+                    document.getElementById('startGameButton').addEventListener('click', () => {
+                        this.startMultiplayerGame();
+                    });
+
+                    // 離開房間按鈕
+                    document.getElementById('leaveRoomButton').addEventListener('click', () => {
+                        this.leaveRoom();
+                    });
+
+                    document.getElementById('multiPlayerStartButton').addEventListener('click', () => {
+                        this.showMultiplayerMenu();
+                    });
+
+                    // 暫停選單按鈕
+                    document.getElementById('resumeButton').addEventListener('click', () => {
+                        this.resumeGame();
+                    });
+
+                    document.getElementById('multiplayerButton').addEventListener('click', () => {
+                        this.showMultiplayerMenu();
+                    });
+
+                    document.getElementById('settingsButton').addEventListener('click', () => {
+                        alert('設定功能開發中...');
+                    });
+
+                    document.getElementById('mainMenuButton').addEventListener('click', () => {
+                        this.returnToMainMenu();
+                    });
+
+                    // 多人遊戲選單按鈕
+                    document.getElementById('joinRoomButton').addEventListener('click', () => {
+                        this.joinRoom();
+                    });
+
+                    document.getElementById('createRoomButton').addEventListener('click', () => {
+                        this.createRoom();
+                    });
+
+                    document.getElementById('backToGameButton').addEventListener('click', () => {
+                        // 檢查是否已經連接到房間
+                        if (this.multiplayerManager.isConnected) {
+                            // 如果已連接，直接開始遊戲
+                            this.startMultiplayerGame();
+                        } else {
+                            // 如果未連接，返回暫停選單
+                            document.getElementById('multiplayerMenu').style.display = 'none';
+                            if (this.gameStarted) {
+                                this.resumeGame();
+                            } else {
+                                document.getElementById('pauseMenu').style.display = 'flex';
+                            }
+                        }
+                    });
+
+                    // 鍵盤事件
+                    document.addEventListener('keydown', (e) => {
+                        // ESC鍵暫停/恢復
+                        if (e.code === 'Escape') {
+                            e.preventDefault();
+                            if (this.gameStarted) {
+                                if (this.chatSystem.isInputActive) {
+                                    // 如果聊天輸入框激活，先關閉聊天
+                                    this.chatSystem.hide();
+                                    return;
+                                }
+
+                                if (this.isPaused) {
+                                    this.resumeGame();
+                                } else {
+                                    this.pauseGame();
+                                }
+                            }
+                            return;
+                        }
+
+                        // T鍵開啟聊天
+                        if (e.code === 'KeyT' && this.gameStarted && !this.isPaused && this.isMultiplayer) {
+                            e.preventDefault();
+                            this.chatSystem.activateInput();
+                            return;
+                        }
+
+                        // 如果聊天輸入框激活，處理聊天相關按鍵
+                        if (this.chatSystem.isInputActive) {
+                            if (e.code === 'Enter') {
+                                e.preventDefault();
+                                const input = document.getElementById('messageInput');
+                                const message = input.value.trim();
+                                if (message) {
+                                    this.chatSystem.sendMessage(message, this.multiplayerManager);
+                                    input.value = '';
+                                }
+                                this.chatSystem.hide();
+                            }
+                            return; // 聊天激活時不處理其他遊戲按鍵
+                        }
+
+                        // 遊戲暫停時不處理移動按鍵
+                        if (this.isPaused) return;
+
+                        this.keys[e.code] = true;
+
+                        // 選擇方塊類型
+                        if (e.code >= 'Digit1' && e.code <= 'Digit4') {
+                            const index = parseInt(e.code.slice(-1)) - 1;
+                            const types = Object.keys(this.blockTypes);
+                            if (types[index]) {
+                                this.selectedBlock = types[index];
+                                this.updateInventoryUI();
+                            }
+                        }
+
+                        // 飛行模式切換
+                        if (e.code === 'KeyF') {
+                            this.flying = !this.flying;
+                            this.player.velocity.y = 0;
+                            this.chatSystem.addSystemMessage(this.flying ? '飛行模式：開啟' : '飛行模式：關閉');
+                        }
+
+                        // 防止空白鍵滾動頁面
+                        if (e.code === 'Space') {
+                            e.preventDefault();
+                        }
+                    });
+
+                    document.addEventListener('keyup', (e) => {
+                        if (this.isPaused || this.chatSystem.isInputActive) return;
+                        this.keys[e.code] = false;
+                    });
+
+                    // 滑鼠事件
+                    this.canvas.addEventListener('click', () => {
+                        if (this.gameStarted && !this.isPaused) {
+                            this.canvas.requestPointerLock();
+                        }
+                    });
+
+                    // 滑鼠滾輪切換物品
+                    this.canvas.addEventListener('wheel', (e) => {
+                        if (!this.gameStarted || this.isPaused || this.chatSystem.isInputActive) return;
+
+                        e.preventDefault();
+
+                        const blockTypes = Object.keys(this.blockTypes);
+                        const currentIndex = blockTypes.indexOf(this.selectedBlock);
+                        let newIndex;
+
+                        if (e.deltaY > 0) {
+                            // 向下滾動 - 下一個物品
+                            newIndex = (currentIndex + 1) % blockTypes.length;
+                        } else {
+                            // 向上滾動 - 上一個物品
+                            newIndex = (currentIndex - 1 + blockTypes.length) % blockTypes.length;
+                        }
+
+                        this.selectedBlock = blockTypes[newIndex];
+                        this.updateInventoryUI();
+                    });
+
+                    document.addEventListener('pointerlockchange', () => {
+                        this.mouse.locked = document.pointerLockElement === this.canvas;
+                    });
+
+                    document.addEventListener('mousemove', (e) => {
+                        if (this.mouse.locked && !this.isPaused) {
+                            this.player.angle += e.movementX * 0.003;
+                            this.player.pitch -= e.movementY * 0.003;
+                            this.player.pitch = Math.max(-Math.PI / 2 + 0.1, Math.min(Math.PI / 2 - 0.1, this.player.pitch));
+                        }
+                    });
+
+                    this.canvas.addEventListener('mousedown', (e) => {
+                        if (!this.gameStarted || !this.worldGenerated || this.isPaused) return;
+
+                        const target = this.getTargetBlock();
+                        if (target) {
+                            if (e.button === 0) { // 左鍵 - 破壞
+                                this.removeBlock(target.x, target.y, target.z);
+
+                                // 多人遊戲同步
+                                if (this.isMultiplayer && this.multiplayerManager.isConnected) {
+                                    this.multiplayerManager.sendBlockUpdate(target.x, target.y, target.z, null, 'break');
+                                }
+                            } else if (e.button === 2) { // 右鍵 - 放置
+                                const place = this.getPlacePosition(target);
+                                if (place && !this.isPlayerColliding(place.x, place.y, place.z)) {
+                                    this.setBlock(place.x, place.y, place.z, this.selectedBlock);
+                                    this.regenerateNearbyChunks(place.x, place.y, place.z);
+
+                                    // 多人遊戲同步
+                                    if (this.isMultiplayer && this.multiplayerManager.isConnected) {
+                                        this.multiplayerManager.sendBlockUpdate(place.x, place.y, place.z, this.selectedBlock, 'place');
+                                    }
+                                }
+                            }
+                        }
+                    });
+
+                    this.canvas.addEventListener('contextmenu', (e) => {
+                        e.preventDefault();
+                    });
+
+                    // 物品欄點擊
+                    document.querySelectorAll('.inventory-slot').forEach((slot) => {
+                        slot.addEventListener('click', () => {
+                            const blockType = slot.dataset.block;
+                            this.selectedBlock = blockType;
+                            this.updateInventoryUI();
+                        });
+                    });
+
+                    // 聊天系統事件
+                    document.getElementById('sendMessage').addEventListener('click', () => {
+                        const input = document.getElementById('messageInput');
+                        const message = input.value.trim();
+                        if (message) {
+                            this.chatSystem.sendMessage(message, this.multiplayerManager);
+                            input.value = '';
+                        }
+                    });
+
+                    document.getElementById('messageInput').addEventListener('keydown', (e) => {
+                        if (e.code === 'Enter') {
+                            e.preventDefault();
+                            const message = e.target.value.trim();
+                            if (message) {
+                                this.chatSystem.sendMessage(message, this.multiplayerManager);
+                                e.target.value = '';
+                            }
+                            this.chatSystem.hide();
+                        } else if (e.code === 'Escape') {
+                            e.preventDefault();
+                            this.chatSystem.hide();
+                        }
+                    });
+
+                    // 視窗大小調整
+                    window.addEventListener('resize', () => {
+                        this.canvas.width = window.innerWidth;
+                        this.canvas.height = window.innerHeight;
+                        this.gl.viewport(0, 0, this.canvas.width, this.canvas.height);
+
+                        // 重新計算投影矩陣
+                        const aspect = this.canvas.width / this.canvas.height;
+                        this.perspective(this.projectionMatrix, Math.PI / 4, aspect, 0.1, 1000.0);
+                    });
+
+                    // 防止頁面滾動
+                    window.addEventListener('keydown', (e) => {
+                        if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) {
+                            if (this.gameStarted && this.mouse.locked) {
+                                e.preventDefault();
+                            }
+                        }
+                    });
+                }
+
+                startGame() {
+                    if (!this.worldGenerated) {
+                        alert('世界還在生成中，請稍候...');
+                        return;
+                    }
+
+                    this.gameStarted = true;
+                    this.isPaused = false;
+                    document.getElementById('instructions').style.display = 'none';
+                    document.getElementById('pauseMenu').style.display = 'none';
+                    document.getElementById('multiplayerMenu').style.display = 'none';
+
+                    // 將玩家放置在安全位置
+                    this.player.x = 0;
+                    this.player.z = 0;
+                    this.player.y = Math.max(5, this.getHighestBlock(0, 0) + 3);
+
+                    // 顯示聊天系統（多人模式）
+                    if (this.isMultiplayer) {
+                        this.chatSystem.show();
+                        this.chatSystem.addSystemMessage('遊戲開始！按T鍵聊天');
+                    }
+
+                    console.log(`遊戲已啟動！玩家位置: (${this.player.x}, ${this.player.y}, ${this.player.z})`);
+                    console.log(`模式: ${this.isMultiplayer ? '多人' : '單人'}`);
+                }
+
+                // 重新生成附近區塊
+                regenerateNearbyChunks(x, y, z) {
+                    const chunkX = Math.floor((x + this.worldSize / 2) / 16);
+                    const chunkZ = Math.floor((z + this.worldSize / 2) / 16);
+
+                    this.generateChunkMesh(chunkX, chunkZ);
+
+                    // 檢查相鄰區塊
+                    const localX = (x + this.worldSize / 2) % 16;
+                    const localZ = (z + this.worldSize / 2) % 16;
+                    const maxChunkIndex = Math.ceil(this.worldSize / 16) - 1;
+
+                    if (localX === 0 && chunkX > 0) {
+                        this.generateChunkMesh(chunkX - 1, chunkZ);
+                    }
+                    if (localX === 15 && chunkX < maxChunkIndex) {
+                        this.generateChunkMesh(chunkX + 1, chunkZ);
+                    }
+                    if (localZ === 0 && chunkZ > 0) {
+                        this.generateChunkMesh(chunkX, chunkZ - 1);
+                    }
+                    if (localZ === 15 && chunkZ < maxChunkIndex) {
+                        this.generateChunkMesh(chunkX, chunkZ + 1);
+                    }
+                }
+
+                async generateWorld() {
+                    return new Promise((resolve) => {
+                        const startTime = Date.now();
+                        let progress = 0;
+
+                        // 生成高度圖
+                        const heightMap = this.generateHeightMap();
+
+                        const generateChunk = (chunkX, chunkZ) => {
+                            console.log(`開始生成區塊 (${chunkX}, ${chunkZ})`);
+
+                            const chunkSize = 16;
+                            const startX = chunkX * chunkSize - this.worldSize / 2;
+                            const startZ = chunkZ * chunkSize - this.worldSize / 2;
+
+                            let blocksGenerated = 0;
+
+                            for (let x = 0; x < chunkSize; x++) {
+                                for (let z = 0; z < chunkSize; z++) {
+                                    const worldX = startX + x;
+                                    const worldZ = startZ + z;
+
+                                    if (Math.abs(worldX) >= this.worldSize / 2 || Math.abs(worldZ) >= this.worldSize / 2) continue;
+
+                                    const height = heightMap[worldX + this.worldSize / 2][worldZ + this.worldSize / 2];
+
+                                    // 基岩層（最底層）
+                                    for (let y = -3; y <= -1; y++) {
+                                        this.setBlock(worldX, y, worldZ, 'stone');
+                                        blocksGenerated++;
+                                    }
+
+                                    // 地下石頭層
+                                    for (let y = 0; y < height - 1; y++) {
+                                        this.setBlock(worldX, y, worldZ, 'stone');
+                                        blocksGenerated++;
+                                    }
+
+                                    // 表面草地
+                                    if (height >= 0) {
+                                        this.setBlock(worldX, height, worldZ, 'grass');
+                                        blocksGenerated++;
+                                    }
+
+                                    // 生成樹木（降低密度）
+                                    if (Math.random() < 0.02 && height > 2) {
+                                        this.generateSimpleTree(worldX, height + 1, worldZ);
+                                    }
+
+                                    // 水體（海平面為0）
+                                    if (height < 0) {
+                                        for (let y = height + 1; y <= 0; y++) {
+                                            this.setBlock(worldX, y, worldZ, 'water');
+                                            blocksGenerated++;
+                                        }
+                                    }
+                                }
+                            }
+
+                            console.log(`區塊 (${chunkX}, ${chunkZ}) 生成了 ${blocksGenerated} 個方塊`);
+
+                            try {
+                                this.generateChunkMesh(chunkX, chunkZ);
+                                console.log(`區塊 (${chunkX}, ${chunkZ}) 網格生成成功`);
+                            } catch (error) {
+                                console.error(`區塊 (${chunkX}, ${chunkZ}) 網格生成失敗:`, error);
+                            }
+                        };
+
+                        const totalChunks = Math.pow(Math.ceil(this.worldSize / 16), 2);
+                        let processedChunks = 0;
+
+                        const processNextChunk = () => {
+                            const chunksPerFrame = 2;
+                            const chunksPerSide = Math.ceil(this.worldSize / 16);
+
+                            for (let i = 0; i < chunksPerFrame && processedChunks < totalChunks; i++) {
+                                const chunkX = Math.floor(processedChunks / chunksPerSide);
+                                const chunkZ = processedChunks % chunksPerSide;
+
+                                try {
+                                    generateChunk(chunkX, chunkZ);
+                                    processedChunks++;
+                                } catch (error) {
+                                    console.error(`區塊 (${chunkX}, ${chunkZ}) 生成失敗:`, error);
+                                    processedChunks++;
+                                }
+                            }
+
+                            progress = (processedChunks / totalChunks) * 100;
+                            const progressBar = document.getElementById('loadingProgress');
+                            const loadingText = document.querySelector('.loading');
+
+                            if (progressBar) {
+                                progressBar.style.width = progress + '%';
+                            }
+                            if (loadingText) {
+                                loadingText.textContent = `生成世界 ${Math.floor(progress)}%`;
+                            }
+
+                            if (processedChunks >= totalChunks) {
+                                this.worldGenerated = true;
+                                console.log(`世界生成完成，耗時: ${Date.now() - startTime}ms`);
+                                console.log(`總共生成了 ${this.world.size} 個方塊`);
+                                resolve();
+                            } else {
+                                requestAnimationFrame(processNextChunk);
+                            }
+                        };
+
+                        processNextChunk();
+                    });
+                }
+
+                generateHeightMap() {
+                    const heightMap = [];
+                    for (let x = 0; x < this.worldSize; x++) {
+                        heightMap[x] = [];
+                        for (let z = 0; z < this.worldSize; z++) {
+                            // 改進的噪聲算法
+                            const nx = (x - this.worldSize / 2) / this.worldSize;
+                            const nz = (z - this.worldSize / 2) / this.worldSize;
+
+                            // 多層噪聲疊加
+                            const noise1 = this.improvedNoise(nx * 4, nz * 4) * 6;
+                            const noise2 = this.improvedNoise(nx * 8, nz * 8) * 3;
+                            const noise3 = this.improvedNoise(nx * 16, nz * 16) * 1.5;
+
+                            // 基礎高度 + 噪聲
+                            const baseHeight = 2;
+                            heightMap[x][z] = Math.floor(baseHeight + noise1 + noise2 + noise3);
+                        }
+                    }
+                    return heightMap;
+                }
+
+                // 改進的噪聲函數
+                improvedNoise(x, z) {
+                    // 使用多個正弦波疊加產生更自然的噪聲
+                    const n1 = Math.sin(x * 2.1 + z * 1.7) * 0.5;
+                    const n2 = Math.sin(x * 1.3 - z * 2.3) * 0.3;
+                    const n3 = Math.sin(x * 3.7 + z * 0.9) * 0.2;
+                    return (n1 + n2 + n3);
+                }
+
+                generateSimpleTree(x, y, z) {
+                    // 簡單的樹幹（3格高）
+                    for (let i = 0; i < 3; i++) {
+                        this.setBlock(x, y + i, z, 'wood');
+                    }
+
+                    // 簡單的樹葉（十字形）
+                    const leafY = y + 3;
+                    this.setBlock(x, leafY, z, 'grass'); // 中心
+                    this.setBlock(x + 1, leafY, z, 'grass');
+                    this.setBlock(x - 1, leafY, z, 'grass');
+                    this.setBlock(x, leafY, z + 1, 'grass');
+                    this.setBlock(x, leafY, z - 1, 'grass');
+
+                    // 頂部
+                    this.setBlock(x, leafY + 1, z, 'grass');
+                }
+
+                setBlock(x, y, z, type) {
+                    const key = `${x},${y},${z}`;
+                    this.world.set(key, type);
+                }
+
+                getBlock(x, y, z) {
+                    const key = `${x},${y},${z}`;
+                    return this.world.get(key);
+                }
+
+                removeBlock(x, y, z) {
+                    const key = `${x},${y},${z}`;
+                    this.world.delete(key);
+
+                    // 重新生成受影響的區塊網格
+                    this.regenerateNearbyChunks(x, y, z);
+                }
+
+                getHighestBlock(x, z) {
+                    for (let y = 20; y >= -10; y--) {
+                        if (this.getBlock(Math.floor(x), y, Math.floor(z))) {
+                            return y;
+                        }
+                    }
+                    return 0;
+                }
+
+                updateInventoryUI() {
+                    document.querySelectorAll('.inventory-slot').forEach(slot => {
+                        slot.classList.remove('active');
+                        if (slot.dataset.block === this.selectedBlock) {
+                            slot.classList.add('active');
+                        }
+                    });
+                }
+
+                getTargetBlock() {
+                    const range = 8;
+                    const step = 0.05;
+
+                    const startX = this.player.x;
+                    const startY = this.player.y + 1.6; // 眼睛高度
+                    const startZ = this.player.z;
+
+                    // 計算射線方向
+                    const dirX = Math.cos(this.player.angle) * Math.cos(this.player.pitch);
+                    const dirY = Math.sin(this.player.pitch);
+                    const dirZ = Math.sin(this.player.angle) * Math.cos(this.player.pitch);
+
+                    for (let d = 0; d < range; d += step) {
+                        const x = Math.floor(startX + dirX * d);
+                        const y = Math.floor(startY + dirY * d);
+                        const z = Math.floor(startZ + dirZ * d);
+
+                        if (this.getBlock(x, y, z)) {
+                            return {
+                                x, y, z,
+                                hitX: startX + dirX * d,
+                                hitY: startY + dirY * d,
+                                hitZ: startZ + dirZ * d
+                            };
+                        }
+                    }
+                    return null;
+                }
+
+                getPlacePosition(target) {
+                    if (!target) return null;
+
+                    // 計算射線方向
+                    const dirX = Math.cos(this.player.angle) * Math.cos(this.player.pitch);
+                    const dirY = Math.sin(this.player.pitch);
+                    const dirZ = Math.sin(this.player.angle) * Math.cos(this.player.pitch);
+
+                    // 根據撞擊點確定放置面
+                    const hitX = target.hitX - target.x;
+                    const hitY = target.hitY - target.y;
+                    const hitZ = target.hitZ - target.z;
+
+                    let placeX = target.x;
+                    let placeY = target.y;
+                    let placeZ = target.z;
+
+                    // 確定最接近的面
+                    const absX = Math.abs(hitX - 0.5);
+                    const absY = Math.abs(hitY - 0.5);
+                    const absZ = Math.abs(hitZ - 0.5);
+
+                    if (absX > absY && absX > absZ) {
+                        // X面
+                        placeX += hitX > 0.5 ? 1 : -1;
+                    } else if (absY > absZ) {
+                        // Y面
+                        placeY += hitY > 0.5 ? 1 : -1;
+                    } else {
+                        // Z面
+                        placeZ += hitZ > 0.5 ? 1 : -1;
+                    }
+
+                    // 檢查位置是否有效
+                    if (!this.getBlock(placeX, placeY, placeZ)) {
+                        return { x: placeX, y: placeY, z: placeZ };
+                    }
+
+                    return null;
+                }
+
+                isPlayerColliding(x, y, z) {
+                    const px = Math.floor(this.player.x);
+                    const py = Math.floor(this.player.y);
+                    const pz = Math.floor(this.player.z);
+
+                    return (Math.abs(x - px) <= 1 && Math.abs(y - py) <= 2 && Math.abs(z - pz) <= 1);
+                }
+
+                checkCollision(x, y, z) {
+                    const blockX = Math.floor(x);
+                    const blockY = Math.floor(y);
+                    const blockZ = Math.floor(z);
+
+                    // 檢查玩家佔用的空間（2格高）
+                    for (let dy = 0; dy < 2; dy++) {
+                        if (this.getBlock(blockX, blockY + dy, blockZ)) {
+                            return true;
+                        }
+                    }
+                    return false;
+                }
+
+                generateChunkMesh(chunkX, chunkZ) {
+                    console.log(`開始生成區塊網格 (${chunkX}, ${chunkZ})`);
+
+                    // 添加邊界檢查
+                    if (chunkX < 0 || chunkZ < 0 ||
+                        chunkX >= Math.ceil(this.worldSize / 16) ||
+                        chunkZ >= Math.ceil(this.worldSize / 16)) {
+                        console.warn(`區塊 (${chunkX}, ${chunkZ}) 超出邊界，跳過`);
+                        return;
+                    }
+
+                    const chunkSize = 16;
+                    const vertices = [];
+                    const colors = [];
+                    const normals = [];
+                    const indices = [];
+                    let indexOffset = 0;
+
+                    const startX = chunkX * chunkSize - this.worldSize / 2;
+                    const startZ = chunkZ * chunkSize - this.worldSize / 2;
+
+                    for (let x = 0; x < chunkSize; x++) {
+                        for (let z = 0; z < chunkSize; z++) {
+                            for (let y = -5; y < 20; y++) {
+                                const worldX = startX + x;
+                                const worldZ = startZ + z;
+                                const blockType = this.getBlock(worldX, y, worldZ);
+
+                                if (!blockType) continue;
+
+                                // 檢查每個面是否需要渲染
+                                const faces = [
+                                    { dir: [0, 1, 0], visible: this.shouldRenderFace(worldX, y + 1, worldZ, blockType) }, // 上
+                                    { dir: [0, -1, 0], visible: this.shouldRenderFace(worldX, y - 1, worldZ, blockType) }, // 下
+                                    { dir: [1, 0, 0], visible: this.shouldRenderFace(worldX + 1, y, worldZ, blockType) }, // 右
+                                    { dir: [-1, 0, 0], visible: this.shouldRenderFace(worldX - 1, y, worldZ, blockType) }, // 左
+                                    { dir: [0, 0, 1], visible: this.shouldRenderFace(worldX, y, worldZ + 1, blockType) }, // 前
+                                    { dir: [0, 0, -1], visible: this.shouldRenderFace(worldX, y, worldZ - 1, blockType) } // 後
+                                ];
+
+                                faces.forEach((face, faceIndex) => {
+                                    if (!face.visible) return;
+
+                                    const faceVertices = this.getFaceVertices(worldX, y, worldZ, faceIndex);
+
+                                    // 確保方塊類型存在
+                                    const blockInfo = this.blockTypes[blockType];
+                                    if (!blockInfo) {
+                                        console.warn(`未知方塊類型: ${blockType}`);
+                                        return;
+                                    }
+
+                                    // 根據面的方向選擇顏色
+                                    let blockColor;
+                                    if (blockInfo.colors) {
+                                        switch (faceIndex) {
+                                            case 0: // 上面
+                                                blockColor = blockInfo.colors.top;
+                                                break;
+                                            case 1: // 下面
+                                                blockColor = blockInfo.colors.bottom;
+                                                break;
+                                            default: // 側面 (2,3,4,5)
+                                                blockColor = blockInfo.colors.side;
+                                                break;
+                                        }
+                                    } else {
+                                        blockColor = blockInfo.color || [0.5, 0.5, 0.5];
+                                    }
+
+                                    // 確保顏色數組有效
+                                    if (!blockColor || blockColor.length !== 3) {
+                                        console.warn(`無效的方塊顏色: ${blockType}`, blockColor);
+                                        blockColor = [0.5, 0.5, 0.5]; // 預設灰色
+                                    }
+
+                                    // 添加面向光照的陰影效果
+                                    const shadeFactor = this.calculateFaceShading(faceIndex, face.dir);
+                                    const shadedColor = [
+                                        Math.max(0, Math.min(1, blockColor[0] * shadeFactor)),
+                                        Math.max(0, Math.min(1, blockColor[1] * shadeFactor)),
+                                        Math.max(0, Math.min(1, blockColor[2] * shadeFactor))
+                                    ];
+
+                                    // 添加頂點
+                                    for (let i = 0; i < 4; i++) {
+                                        vertices.push(...faceVertices[i]);
+                                        colors.push(...shadedColor);
+                                        normals.push(...face.dir);
+                                    }
+
+                                    indices.push(
+                                        indexOffset, indexOffset + 1, indexOffset + 2,
+                                        indexOffset, indexOffset + 2, indexOffset + 3
+                                    );
+                                    indexOffset += 4;
+                                });
+                            }
+                        }
+                    }
+
+                    console.log(`區塊 (${chunkX}, ${chunkZ}) 網格統計: 頂點=${vertices.length / 3}, 索引=${indices.length}`);
+
+                    // 存儲區塊網格
+                    this.chunkMeshes.set(`${chunkX},${chunkZ}`, {
+                        vertices: new Float32Array(vertices),
+                        colors: new Float32Array(colors),
+                        normals: new Float32Array(normals),
+                        indices: new Uint16Array(indices),
+                        vertexCount: vertices.length / 3,
+                        indexCount: indices.length
+                    });
+
+                    console.log(`區塊網格 (${chunkX}, ${chunkZ}) 已存儲`);
+                }
+
+                calculateFaceShading(faceIndex, normal) {
+                    // 基於面的方向計算光照強度
+                    const lightDirection = [0.3, 0.8, 0.5]; // 光源方向
+
+                    // 計算法線與光源的點積
+                    const dotProduct = normal[0] * lightDirection[0] +
+                        normal[1] * lightDirection[1] +
+                        normal[2] * lightDirection[2];
+
+                    // 基礎亮度 + 方向光照
+                    const baseBrightness = 0.6;
+                    const directionalLight = Math.max(0, dotProduct) * 0.4;
+
+                    return Math.max(0.3, Math.min(1.0, baseBrightness + directionalLight));
+                }
+
+                shouldRenderFace(x, y, z, currentBlockType) {
+                    const neighborBlock = this.getBlock(x, y, z);
+
+                    // 如果鄰居位置沒有方塊，則渲染這個面
+                    if (!neighborBlock) {
+                        return true;
+                    }
+
+                    // 如果鄰居是透明方塊（如水），則渲染這個面
+                    if (this.blockTypes[neighborBlock] && this.blockTypes[neighborBlock].transparent) {
+                        return true;
+                    }
+
+                    // 如果當前方塊是透明的，且鄰居不是同類型，則渲染
+                    if (this.blockTypes[currentBlockType] && this.blockTypes[currentBlockType].transparent) {
+                        return neighborBlock !== currentBlockType;
+                    }
+
+                    // 否則不渲染（被遮擋）
+                    return false;
+                }
+
+                getFaceVertices(x, y, z, faceIndex) {
+                    const vertices = [
+                        // 上面 (y+1) - 逆時針
+                        [[x, y + 1, z], [x, y + 1, z + 1], [x + 1, y + 1, z + 1], [x + 1, y + 1, z]],
+                        // 下面 (y) - 順時針
+                        [[x, y, z], [x + 1, y, z], [x + 1, y, z + 1], [x, y, z + 1]],
+                        // 右面 (x+1) - 逆時針
+                        [[x + 1, y, z], [x + 1, y + 1, z], [x + 1, y + 1, z + 1], [x + 1, y, z + 1]],
+                        // 左面 (x) - 順時針
+                        [[x, y, z + 1], [x, y + 1, z + 1], [x, y + 1, z], [x, y, z]],
+                        // 前面 (z+1) - 逆時針
+                        [[x, y, z + 1], [x + 1, y, z + 1], [x + 1, y + 1, z + 1], [x, y + 1, z + 1]],
+                        // 後面 (z) - 順時針
+                        [[x + 1, y, z], [x, y, z], [x, y + 1, z], [x + 1, y + 1, z]]
+                    ];
+
+                    return vertices[faceIndex];
+                }
+
+                updateViewMatrix() {
+                    // 計算攝像機位置和目標
+                    const eye = [this.player.x, this.player.y + 1.6, this.player.z]; // 玩家眼睛高度
+                    const target = [
+                        this.player.x + Math.cos(this.player.angle) * Math.cos(this.player.pitch),
+                        this.player.y + 1.6 + Math.sin(this.player.pitch),
+                        this.player.z + Math.sin(this.player.angle) * Math.cos(this.player.pitch)
+                    ];
+                    const up = [0, 1, 0];
+
+                    this.lookAt(this.viewMatrix, eye, target, up);
+                }
+
+                render() {
+                    this.gl.clear(this.gl.COLOR_BUFFER_BIT | this.gl.DEPTH_BUFFER_BIT);
+
+                    if (!this.gameStarted || !this.worldGenerated) return;
+
+                    this.triangleCount = 0;
+                    this.vertexCount = 0;
+                    this.drawCalls = 0;
+
+                    this.updateViewMatrix();
+
+                    this.identity(this.modelMatrix);
+                    this.gl.uniformMatrix4fv(this.uniforms.projectionMatrix, false, this.projectionMatrix);
+                    this.gl.uniformMatrix4fv(this.uniforms.viewMatrix, false, this.viewMatrix);
+                    this.gl.uniformMatrix4fv(this.uniforms.modelMatrix, false, this.modelMatrix);
+
+                    // 改進的光照設置
+                    this.gl.uniform3f(this.uniforms.lightDirection, 0.3, 0.8, 0.5);
+                    this.gl.uniform3f(this.uniforms.ambientLight, 0.6, 0.6, 0.6);
+
+                    this.renderVisibleChunks();
+                    this.renderOtherPlayers();
+                }
+
+                renderVisibleChunks() {
+                    const playerChunkX = Math.floor((this.player.x + this.worldSize / 2) / 16);
+                    const playerChunkZ = Math.floor((this.player.z + this.worldSize / 2) / 16);
+                    const renderChunkDistance = Math.ceil(this.renderDistance / 16);
+
+                    let renderedChunks = 0;
+                    let skippedChunks = 0;
+
+                    // 從玩家位置向外渲染，確保近處優先
+                    for (let radius = 0; radius <= renderChunkDistance; radius++) {
+                        for (let dx = -radius; dx <= radius; dx++) {
+                            for (let dz = -radius; dz <= radius; dz++) {
+                                if (Math.abs(dx) !== radius && Math.abs(dz) !== radius) continue;
+
+                                const chunkX = playerChunkX + dx;
+                                const chunkZ = playerChunkZ + dz;
+
+                                // 邊界檢查
+                                if (chunkX < 0 || chunkZ < 0 ||
+                                    chunkX >= Math.ceil(this.worldSize / 16) ||
+                                    chunkZ >= Math.ceil(this.worldSize / 16)) continue;
+
+                                const chunkKey = `${chunkX},${chunkZ}`;
+                                const mesh = this.chunkMeshes.get(chunkKey);
+
+                                if (!mesh || mesh.indexCount === 0) {
+                                    skippedChunks++;
+                                    continue;
+                                }
+
+                                this.renderChunk(chunkX, chunkZ);
+                                renderedChunks++;
+                            }
+                        }
+                    }
+
+                    // 更新調試信息
+                    if (this.frameCount % 60 === 0) {
+                        console.log(`渲染統計: ${renderedChunks} 個區塊, 跳過: ${skippedChunks} 個`);
+                    }
+                }
+
+                renderChunk(chunkX, chunkZ) {
+                    const chunkKey = `${chunkX},${chunkZ}`;
+                    const mesh = this.chunkMeshes.get(chunkKey);
+
+                    if (!mesh || mesh.indexCount === 0) {
+                        return;
+                    }
+
+                    // 確保深度測試狀態正確
+                    if (!this.gl.getParameter(this.gl.DEPTH_TEST)) {
+                        console.warn('深度測試未啟用，重新啟用');
+                        this.gl.enable(this.gl.DEPTH_TEST);
+                    }
+
+                    // 檢查WebGL狀態
+                    if (this.gl.isContextLost()) {
+                        console.error('WebGL上下文丟失');
+                        return;
+                    }
+
+                    try {
+                        // 綁定頂點數據
+                        this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.buffers.position);
+                        this.gl.bufferData(this.gl.ARRAY_BUFFER, mesh.vertices, this.gl.STATIC_DRAW);
+                        this.gl.enableVertexAttribArray(this.attributes.position);
+                        this.gl.vertexAttribPointer(this.attributes.position, 3, this.gl.FLOAT, false, 0, 0);
+
+                        // 綁定顏色數據
+                        this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.buffers.color);
+                        this.gl.bufferData(this.gl.ARRAY_BUFFER, mesh.colors, this.gl.STATIC_DRAW);
+                        this.gl.enableVertexAttribArray(this.attributes.color);
+                        this.gl.vertexAttribPointer(this.attributes.color, 3, this.gl.FLOAT, false, 0, 0);
+
+                        // 綁定法線數據
+                        this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.buffers.normal);
+                        this.gl.bufferData(this.gl.ARRAY_BUFFER, mesh.normals, this.gl.STATIC_DRAW);
+                        this.gl.enableVertexAttribArray(this.attributes.normal);
+                        this.gl.vertexAttribPointer(this.attributes.normal, 3, this.gl.FLOAT, false, 0, 0);
+
+                        // 綁定索引數據
+                        this.gl.bindBuffer(this.gl.ELEMENT_ARRAY_BUFFER, this.buffers.index);
+                        this.gl.bufferData(this.gl.ELEMENT_ARRAY_BUFFER, mesh.indices, this.gl.STATIC_DRAW);
+
+                        // 檢查WebGL錯誤
+                        const error = this.gl.getError();
+                        if (error !== this.gl.NO_ERROR) {
+                            console.error(`WebGL錯誤: ${error}`);
+                            return;
+                        }
+
+                        // 繪製
+                        this.gl.drawElements(this.gl.TRIANGLES, mesh.indexCount, this.gl.UNSIGNED_SHORT, 0);
+
+                        // 更新統計
+                        this.triangleCount += mesh.indexCount / 3;
+                        this.vertexCount += mesh.vertexCount;
+                        this.drawCalls++;
+
+                    } catch (error) {
+                        console.error(`渲染區塊 ${chunkKey} 時發生錯誤:`, error);
+                    }
+                }
+
+                // 渲染其他玩家
+                renderOtherPlayers() {
+                    if (!this.isMultiplayer) return;
+
+                    this.otherPlayers.forEach((player, playerId) => {
+                        this.renderPlayer(player);
+                        this.renderPlayerNameTag(player);
+                    });
+                }
+
+                // 渲染單個玩家（簡單的方塊表示）
+                renderPlayer(player) {
+                    // 創建簡單的玩家模型（2x1x1的方塊）
+                    const vertices = new Float32Array([
+                        // 下半身方塊
+                        player.x - 0.3, player.y, player.z - 0.3,
+                        player.x + 0.3, player.y, player.z - 0.3,
+                        player.x + 0.3, player.y + 1, player.z - 0.3,
+                        player.x - 0.3, player.y + 1, player.z - 0.3,
+
+                        player.x - 0.3, player.y, player.z + 0.3,
+                        player.x + 0.3, player.y, player.z + 0.3,
+                        player.x + 0.3, player.y + 1, player.z + 0.3,
+                        player.x - 0.3, player.y + 1, player.z + 0.3,
+
+                        // 上半身方塊（頭部）
+                        player.x - 0.25, player.y + 1, player.z - 0.25,
+                        player.x + 0.25, player.y + 1, player.z - 0.25,
+                        player.x + 0.25, player.y + 1.8, player.z - 0.25,
+                        player.x - 0.25, player.y + 1.8, player.z - 0.25,
+
+                        player.x - 0.25, player.y + 1, player.z + 0.25,
+                        player.x + 0.25, player.y + 1, player.z + 0.25,
+                        player.x + 0.25, player.y + 1.8, player.z + 0.25,
+                        player.x - 0.25, player.y + 1.8, player.z + 0.25
+                    ]);
+
+                    const colors = new Float32Array([
+                        // 下半身顏色（藍色）
+                        0.2, 0.2, 0.8, 0.2, 0.2, 0.8, 0.2, 0.2, 0.8, 0.2, 0.2, 0.8,
+                        0.2, 0.2, 0.8, 0.2, 0.2, 0.8, 0.2, 0.2, 0.8, 0.2, 0.2, 0.8,
+                        // 上半身顏色（膚色）
+                        0.9, 0.7, 0.6, 0.9, 0.7, 0.6, 0.9, 0.7, 0.6, 0.9, 0.7, 0.6,
+                        0.9, 0.7, 0.6, 0.9, 0.7, 0.6, 0.9, 0.7, 0.6, 0.9, 0.7, 0.6
+                    ]);
+
+                    const indices = new Uint16Array([
+                        // 下半身立方體的面
+                        0, 1, 2, 0, 2, 3, // 前面
+                        4, 7, 6, 4, 6, 5, // 後面
+                        0, 4, 5, 0, 5, 1, // 底面
+                        2, 6, 7, 2, 7, 3, // 頂面
+                        0, 3, 7, 0, 7, 4, // 左面
+                        1, 5, 6, 1, 6, 2, // 右面
+
+                        // 上半身立方體的面
+                        8, 9, 10, 8, 10, 11, // 前面
+                        12, 15, 14, 12, 14, 13, // 後面
+                        8, 12, 13, 8, 13, 9, // 底面
+                        10, 14, 15, 10, 15, 11, // 頂面
+                        8, 11, 15, 8, 15, 12, // 左面
+                        9, 13, 14, 9, 14, 10 // 右面
+                    ]);
+
+                    try {
+                        // 綁定並渲染玩家模型
+                        this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.buffers.position);
+                        this.gl.bufferData(this.gl.ARRAY_BUFFER, vertices, this.gl.DYNAMIC_DRAW);
+                        this.gl.enableVertexAttribArray(this.attributes.position);
+                        this.gl.vertexAttribPointer(this.attributes.position, 3, this.gl.FLOAT, false, 0, 0);
+
+                        this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.buffers.color);
+                        this.gl.bufferData(this.gl.ARRAY_BUFFER, colors, this.gl.DYNAMIC_DRAW);
+                        this.gl.enableVertexAttribArray(this.attributes.color);
+                        this.gl.vertexAttribPointer(this.attributes.color, 3, this.gl.FLOAT, false, 0, 0);
+
+                        this.gl.bindBuffer(this.gl.ELEMENT_ARRAY_BUFFER, this.buffers.index);
+                        this.gl.bufferData(this.gl.ELEMENT_ARRAY_BUFFER, indices, this.gl.DYNAMIC_DRAW);
+
+                        this.gl.drawElements(this.gl.TRIANGLES, indices.length, this.gl.UNSIGNED_SHORT, 0);
+
+                        this.drawCalls++;
+                    } catch (error) {
+                        console.error('渲染玩家時發生錯誤:', error);
+                    }
+                }
+
+                // 渲染玩家名牌
+                // 渲染單個玩家（Minecraft Steve風格）
+                renderPlayer(player) {
+                    // Steve模型的基本尺寸
+                    const headSize = 0.5;
+                    const bodyWidth = 0.5;
+                    const bodyHeight = 0.75;
+                    const limbSize = 0.25;
+
+                    // 創建Steve模型的各部分
+                    const parts = [
+                        // 頭部
+                        { pos: [player.x, player.y + 1.75, player.z], size: [headSize, headSize, headSize], color: [0.9, 0.7, 0.6] },
+                        // 身體
+                        { pos: [player.x, player.y + 1.125, player.z], size: [bodyWidth, bodyHeight, 0.25], color: [0.2, 0.2, 0.8] },
+                        // 左臂
+                        { pos: [player.x - 0.375, player.y + 1.125, player.z], size: [limbSize, bodyHeight, 0.25], color: [0.9, 0.7, 0.6] },
+                        // 右臂
+                        { pos: [player.x + 0.375, player.y + 1.125, player.z], size: [limbSize, bodyHeight, 0.25], color: [0.9, 0.7, 0.6] },
+                        // 左腿
+                        { pos: [player.x - 0.125, player.y + 0.375, player.z], size: [limbSize, bodyHeight, 0.25], color: [0.1, 0.1, 0.6] },
+                        // 右腿
+                        { pos: [player.x + 0.125, player.y + 0.375, player.z], size: [limbSize, bodyHeight, 0.25], color: [0.1, 0.1, 0.6] }
+                    ];
+
+                    const vertices = [];
+                    const colors = [];
+                    const indices = [];
+                    let indexOffset = 0;
+
+                    // 為每個部分創建立方體
+                    parts.forEach(part => {
+                        const cubeVertices = this.createCube(
+                            part.pos[0] - part.size[0] / 2,
+                            part.pos[1] - part.size[1] / 2,
+                            part.pos[2] - part.size[2] / 2,
+                            part.size[0], part.size[1], part.size[2]
+                        );
+
+                        vertices.push(...cubeVertices);
+
+                        // 為每個頂點添加顏色（每個立方體24個頂點）
+                        for (let i = 0; i < 24; i++) {
+                            colors.push(...part.color);
+                        }
+
+                        // 添加索引（每個立方體6個面，每面2個三角形）
+                        for (let i = 0; i < 6; i++) {
+                            const faceStart = indexOffset + i * 4;
+                            indices.push(
+                                faceStart, faceStart + 1, faceStart + 2,
+                                faceStart, faceStart + 2, faceStart + 3
+                            );
+                        }
+                        indexOffset += 24;
+                    });
+
+                    try {
+                        // 渲染Steve模型
+                        this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.buffers.position);
+                        this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(vertices), this.gl.DYNAMIC_DRAW);
+                        this.gl.enableVertexAttribArray(this.attributes.position);
+                        this.gl.vertexAttribPointer(this.attributes.position, 3, this.gl.FLOAT, false, 0, 0);
+
+                        this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.buffers.color);
+                        this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(colors), this.gl.DYNAMIC_DRAW);
+                        this.gl.enableVertexAttribArray(this.attributes.color);
+                        this.gl.vertexAttribPointer(this.attributes.color, 3, this.gl.FLOAT, false, 0, 0);
+
+                        // 創建法線數據（簡單向上）
+                        const normals = [];
+                        for (let i = 0; i < vertices.length / 3; i++) {
+                            normals.push(0, 1, 0);
+                        }
+
+                        this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.buffers.normal);
+                        this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(normals), this.gl.DYNAMIC_DRAW);
+                        this.gl.enableVertexAttribArray(this.attributes.normal);
+                        this.gl.vertexAttribPointer(this.attributes.normal, 3, this.gl.FLOAT, false, 0, 0);
+
+                        this.gl.bindBuffer(this.gl.ELEMENT_ARRAY_BUFFER, this.buffers.index);
+                        this.gl.bufferData(this.gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indices), this.gl.DYNAMIC_DRAW);
+
+                        this.gl.drawElements(this.gl.TRIANGLES, indices.length, this.gl.UNSIGNED_SHORT, 0);
+
+                        this.drawCalls++;
+                    } catch (error) {
+                        console.error('渲染玩家時發生錯誤:', error);
+                    }
+                }
+
+                // 創建立方體頂點的輔助方法
+                createCube(x, y, z, width, height, depth) {
+                    return [
+                        // 前面
+                        x, y, z + depth,
+                        x + width, y, z + depth,
+                        x + width, y + height, z + depth,
+                        x, y + height, z + depth,
+
+                        // 後面
+                        x + width, y, z,
+                        x, y, z,
+                        x, y + height, z,
+                        x + width, y + height, z,
+
+                        // 左面
+                        x, y, z,
+                        x, y, z + depth,
+                        x, y + height, z + depth,
+                        x, y + height, z,
+
+                        // 右面
+                        x + width, y, z + depth,
+                        x + width, y, z,
+                        x + width, y + height, z,
+                        x + width, y + height, z + depth,
+
+                        // 上面
+                        x, y + height, z + depth,
+                        x + width, y + height, z + depth,
+                        x + width, y + height, z,
+                        x, y + height, z,
+
+                        // 下面
+                        x, y, z,
+                        x + width, y, z,
+                        x + width, y, z + depth,
+                        x, y, z + depth
+                    ];
+                }
+
+                // 世界座標轉螢幕座標
+                worldToScreen(worldX, worldY, worldZ) {
+                    // 創建世界座標向量
+                    const worldPos = [worldX, worldY, worldZ, 1];
+
+                    // 應用視圖和投影變換
+                    const viewPos = this.multiplyMatrixVector(this.viewMatrix, worldPos);
+                    const clipPos = this.multiplyMatrixVector(this.projectionMatrix, viewPos);
+
+                    // 透視除法
+                    if (clipPos[3] === 0) return null;
+
+                    const ndcX = clipPos[0] / clipPos[3];
+                    const ndcY = clipPos[1] / clipPos[3];
+                    const ndcZ = clipPos[2] / clipPos[3];
+
+                    // 轉換為螢幕座標
+                    const screenX = (ndcX + 1) * 0.5 * this.canvas.width;
+                    const screenY = (1 - ndcY) * 0.5 * this.canvas.height;
+
+                    return {
+                        x: screenX,
+                        y: screenY,
+                        z: ndcZ
+                    };
+                }
+
+                // 矩陣向量乘法
+                multiplyMatrixVector(matrix, vector) {
+                    const result = [0, 0, 0, 0];
+                    for (let i = 0; i < 4; i++) {
+                        for (let j = 0; j < 4; j++) {
+                            result[i] += matrix[i * 4 + j] * vector[j];
+                        }
+                    }
+                    return result;
+                }
+
+                updatePlayer() {
+                    if (!this.gameStarted || !this.worldGenerated || this.isPaused) return;
+
+                    const speed = 0.15;
+                    const sprintMultiplier = this.keys['ShiftLeft'] && !this.flying ? 0.5 : (this.keys['ControlLeft'] ? 2 : 1);
+                    const moveSpeed = speed * sprintMultiplier;
+
+                    // 移動計算
+                    let moveX = 0, moveZ = 0;
+
+                    if (this.keys['KeyW']) {
+                        moveX += Math.cos(this.player.angle) * moveSpeed;
+                        moveZ += Math.sin(this.player.angle) * moveSpeed;
+                    }
+                    if (this.keys['KeyS']) {
+                        moveX -= Math.cos(this.player.angle) * moveSpeed;
+                        moveZ -= Math.sin(this.player.angle) * moveSpeed;
+                    }
+                    if (this.keys['KeyA']) {
+                        moveX += Math.cos(this.player.angle - Math.PI / 2) * moveSpeed;
+                        moveZ += Math.sin(this.player.angle - Math.PI / 2) * moveSpeed;
+                    }
+                    if (this.keys['KeyD']) {
+                        moveX += Math.cos(this.player.angle + Math.PI / 2) * moveSpeed;
+                        moveZ += Math.sin(this.player.angle + Math.PI / 2) * moveSpeed;
+                    }
+
+                    // 碰撞檢測
+                    const newX = this.player.x + moveX;
+                    const newZ = this.player.z + moveZ;
+
+                    if (!this.checkCollision(newX, this.player.y, this.player.z)) {
+                        this.player.x = newX;
+                    }
+                    if (!this.checkCollision(this.player.x, this.player.y, newZ)) {
+                        this.player.z = newZ;
+                    }
+
+                    // 飛行模式
+                    if (this.flying) {
+                        if (this.keys['Space']) this.player.y += moveSpeed;
+                        if (this.keys['ShiftLeft']) this.player.y -= moveSpeed;
+                        this.player.velocity.y = 0;
+                        this.player.onGround = false;
+                    } else {
+                        // 重力和跳躍
+                        this.player.velocity.y += this.gravity;
+
+                        if (this.keys['Space'] && this.player.onGround) {
+                            this.player.velocity.y = this.jumpPower;
+                            this.player.onGround = false;
+                        }
+
+                        // 垂直移動
+                        const newY = this.player.y + this.player.velocity.y;
+                        if (!this.checkCollision(this.player.x, newY, this.player.z)) {
+                            this.player.y = newY;
+                            this.player.onGround = false;
+                        } else {
+                            if (this.player.velocity.y < 0) {
+                                this.player.onGround = true;
+                            }
+                            this.player.velocity.y = 0;
+                        }
+                    }
+
+                    // 多人遊戲位置同步
+                    if (this.isMultiplayer && this.multiplayerManager.isConnected) {
+                        // 每隔幾幀發送一次位置更新
+                        if (this.frameCount % 5 === 0) {
+                            this.multiplayerManager.sendPlayerUpdate({
+                                x: this.player.x,
+                                y: this.player.y,
+                                z: this.player.z,
+                                angle: this.player.angle,
+                                pitch: this.player.pitch
+                            });
+                        }
+                    }
+                }
+
+                updateUI() {
+                    document.getElementById('position').textContent =
+                        `${this.player.x.toFixed(1)}, ${this.player.y.toFixed(1)}, ${this.player.z.toFixed(1)}`;
+                    document.getElementById('direction').textContent =
+                        `${(this.player.angle * 180 / Math.PI).toFixed(0)}°`;
+                    document.getElementById('blockCount').textContent = this.world.size;
+                    document.getElementById('renderInfo').textContent =
+                        `WebGL ${this.flying ? '(飛行)' : '(生存)'}`;
+
+                    // 更新生物群落
+                    const biome = this.getBiome(this.player.x, this.player.z);
+                    document.getElementById('biome').textContent = biome;
+
+                    // 更新調試信息
+                    document.getElementById('triangleCount').textContent = this.triangleCount;
+                    document.getElementById('vertexCount').textContent = this.vertexCount;
+                    document.getElementById('drawCalls').textContent = this.drawCalls;
+                }
+
+                getBiome(x, z) {
+                    const height = this.getHighestBlock(x, z);
+                    if (height < -1) return '海洋';
+                    if (height > 5) return '山地';
+                    return '平原';
+                }
+
+                updateMinimap() {
+                    this.minimapCtx.fillStyle = '#000';
+                    this.minimapCtx.fillRect(0, 0, 180, 180);
+
+                    const mapRange = 20;
+                    const scale = 180 / (mapRange * 2);
+
+                    // 繪製地形
+                    for (let x = -mapRange; x <= mapRange; x++) {
+                        for (let z = -mapRange; z <= mapRange; z++) {
+                            const worldX = Math.floor(this.player.x) + x;
+                            const worldZ = Math.floor(this.player.z) + z;
+                            const height = this.getHighestBlock(worldX, worldZ);
+
+                            if (height > -10) {
+                                const brightness = Math.max(0, Math.min(1, (height + 5) / 15));
+                                this.minimapCtx.fillStyle = `rgb(${Math.floor(76 * brightness)}, ${Math.floor(175 * brightness)}, ${Math.floor(80 * brightness)})`;
+                                this.minimapCtx.fillRect(
+                                    90 + x * scale - scale / 2,
+                                    90 + z * scale - scale / 2,
+                                    scale, scale
+                                );
+                            }
+                        }
+                    }
+
+                    // 繪製其他玩家（多人模式）
+                    if (this.isMultiplayer) {
+                        this.otherPlayers.forEach(player => {
+                            const relativeX = player.x - this.player.x;
+                            const relativeZ = player.z - this.player.z;
+
+                            if (Math.abs(relativeX) <= mapRange && Math.abs(relativeZ) <= mapRange) {
+                                this.minimapCtx.fillStyle = '#ff4444';
+                                this.minimapCtx.fillRect(
+                                    90 + relativeX * scale - 2,
+                                    90 + relativeZ * scale - 2,
+                                    4, 4
+                                );
+                            }
+                        });
+                    }
+
+                    // 繪製玩家位置
+                    this.minimapCtx.fillStyle = '#00ff88';
+                    this.minimapCtx.fillRect(88, 88, 4, 4);
+
+                    // 繪製方向指示器
+                    this.minimapCtx.strokeStyle = '#00ff88';
+                    this.minimapCtx.lineWidth = 2;
+                    this.minimapCtx.beginPath();
+                    this.minimapCtx.moveTo(90, 90);
+                    this.minimapCtx.lineTo(
+                        90 + Math.cos(this.player.angle) * 15,
+                        90 + Math.sin(this.player.angle) * 15
+                    );
+                    this.minimapCtx.stroke();
+                }
+
+                update(currentTime) {
+                    // 計算FPS
+                    if (this.lastFrameTime) {
+                        const deltaTime = currentTime - this.lastFrameTime;
+                        this.frameCount++;
+
+                        if (this.frameCount % 60 === 0) {
+                            this.fps = Math.round(1000 / deltaTime);
+                            document.getElementById('fpsCounter').textContent = this.fps;
+                        }
+                    }
+                    this.lastFrameTime = currentTime;
+
+                    // 更新遊戲邏輯
+                    this.updatePlayer();
+                    this.updateUI();
+                    this.updateMinimap();
+                }
+
+                gameLoop() {
+                    const currentTime = performance.now();
+
+                    this.update(currentTime);
+                    this.render();
+
+                    requestAnimationFrame(() => this.gameLoop());
+                }
+            } // WebGLMinecraft 類別結束
+
+            // 啟動遊戲
+            window.addEventListener('load', () => {
+                // 檢查WebGL支援
+                const canvas = document.createElement('canvas');
+                const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+
+                if (!gl) {
+                    document.body.innerHTML = `
+            <div class="error-message">
+                <h3>❌ WebGL 不支援</h3>
+                <p>您的瀏覽器不支援WebGL，無法運行此遊戲。</p>
+                <p>請嘗試使用現代瀏覽器如Chrome、Firefox或Edge。</p>
+                <button onclick="location.reload()">重新檢測</button>
+            </div>
+        `;
+                    return;
+                }
+
+                try {
+                    new WebGLMinecraft();
+                    console.log('🎮 WebGL Minecraft 多人版已啟動！');
+                    console.log('📋 功能列表:');
+                    console.log('  ✅ ESC鍵暫停/恢復');
+                    console.log('  ✅ 多人遊戲支援');
+                    console.log('  ✅ 聊天系統 (T鍵)');
+                    console.log('  ✅ 玩家名牌顯示');
+                    console.log('  ✅ 房間系統');
+                    console.log('  ✅ 實時同步');
+                } catch (error) {
+                    console.error('遊戲啟動失敗:', error);
+                    document.body.innerHTML = `
+            <div class="error-message">
+                <h3>❌ 啟動失敗</h3>
+                <p>遊戲啟動時發生錯誤: ${error.message}</p>
+                <button onclick="location.reload()">重新啟動</button>
+            </div>
+        `;
+                }
+            });
+
+            // 添加一些實用的全域函數
+            window.toggleFullscreen = function () {
+                if (!document.fullscreenElement) {
+                    document.documentElement.requestFullscreen();
+                } else {
+                    document.exitFullscreen();
+                }
+            };
+
+            // 性能監控
+            window.addEventListener('beforeunload', () => {
+                console.log('遊戲會話結束');
+            });
+
+            // 處理頁面可見性變化
+            document.addEventListener('visibilitychange', () => {
+                if (document.hidden) {
+                    console.log('遊戲暫停');
+                } else {
+                    console.log('遊戲恢復');
+                }
+            });
+
+        </script>
+    </body>
+
+</html>
