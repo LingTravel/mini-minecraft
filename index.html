@@ -2,7 +2,9 @@
 <html lang="zh-TW">
 
 <head>
-    <script src="https://cdn.jsdelivr.net/npm/simple-peer@9.11.1/simplepeer.min.js"></script>
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-database-compat.js"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>WebGL Minecraft 3D - 多人版</title>
@@ -164,6 +166,7 @@
             <div>👥 玩家: <span id="playerCount">1</span></div>
             <div>🌐 連線: <span id="connectionStatus">離線</span></div>
             <div>📡 P2P: <span id="p2pStatus">未連接</span></div>
+            <div>🔥 Firebase: <span id="firebaseStatus">連接中...</span></div>
         </div>
 
         <div id="fps">FPS: <span id="fpsCounter">60</span></div>
@@ -720,15 +723,61 @@
 
     <body>
         <script>
+            // Firebase 配置 (使用演示配置，實際使用時請創建自己的Firebase項目)
+            const firebaseConfig = {
+                apiKey: "AIzaSyDFr6n0l_yc4UcyROw9pFbRRYeYOvAb2vc", // 請替換為你的實際API密鑰
+                authDomain: "mini-minecraft-c2d8e.firebaseapp.com",
+                databaseURL: "https://mini-minecraft-c2d8e-default-rtdb.asia-southeast1.firebasedatabase.app/",
+                projectId: "mini-minecraft-c2d8e",
+                storageBucket: "mini-minecraft-c2d8e.appspot.com",
+                messagingSenderId: "965733295205", // 請替換為你的實際發送者ID
+                appId: "1:965733295205:web:cdaa7cb8b80cd1824e928c" // 請替換為你的實際應用程式ID
+            };
+
+            let database = null;
+            let firebaseAvailable = false;
+
+            // 初始化Firebase
+            try {
+                if (!firebase.apps.length) {
+                    firebase.initializeApp(firebaseConfig);
+                }
+                database = firebase.database();
+
+                // 測試連接
+                database.ref('.info/connected').on('value', (snapshot) => {
+                    firebaseAvailable = snapshot.val() === true;
+                    console.log('Firebase連接狀態:', firebaseAvailable ? '已連接' : '已斷開');
+
+                    // 更新UI狀態
+                    const statusElement = document.getElementById('firebaseStatus');
+                    if (statusElement) {
+                        statusElement.textContent = firebaseAvailable ? '已連接 (亞洲)' : '連接中...';
+                        statusElement.style.color = firebaseAvailable ? '#00ff88' : '#ffaa00';
+                    }
+                });
+
+                console.log('Firebase初始化成功 (亞洲東南區域)');
+            } catch (error) {
+                console.error('Firebase初始化失敗:', error);
+                firebaseAvailable = false;
+
+                // 更新UI顯示錯誤
+                const statusElement = document.getElementById('firebaseStatus');
+                if (statusElement) {
+                    statusElement.textContent = '連接失敗';
+                    statusElement.style.color = '#ff4444';
+                }
+            }
+
             // 多人遊戲網路管理類別
-            class WebRTCMultiplayerManager {
+            class FirebaseMultiplayerManager {
                 constructor() {
                     this.isHost = false;
                     this.isConnected = false;
                     this.roomId = null;
                     this.playerId = null;
                     this.playerName = '';
-                    this.peers = new Map(); // 存儲其他玩家的連接
                     this.otherPlayers = new Map();
                     this.callbacks = {
                         onPlayerJoin: null,
@@ -739,9 +788,11 @@
                         onRoomUpdate: null
                     };
 
-                    // 使用免費的信令伺服器（實際部署時應該使用自己的）
-                    this.signalingServer = 'wss://socketsbay.com/wss/v2/1/demo/';
-                    this.signalingSocket = null;
+                    this.roomRef = null;
+                    this.playersRef = null;
+                    this.messagesRef = null;
+                    this.blocksRef = null;
+                    this.listeners = [];
                 }
 
                 setCallback(event, callback) {
@@ -754,32 +805,41 @@
                             this.roomId = roomId || this.generateRoomId();
                             this.playerName = playerName || 'Player';
                             this.playerId = this.generatePlayerId();
-                            this.isHost = !roomId; // 如果沒有提供房間ID，則為主機
+                            this.isHost = !roomId;
 
-                            // 模擬連接過程（因為實際的WebRTC需要信令伺服器）
-                            setTimeout(() => {
-                                this.isConnected = true;
-                                console.log(`已連接到房間: ${this.roomId}, 玩家ID: ${this.playerId}`);
+                            // 設置Firebase引用
+                            this.roomRef = database.ref(`rooms/${this.roomId}`);
+                            this.playersRef = this.roomRef.child('players');
+                            this.messagesRef = this.roomRef.child('messages');
+                            this.blocksRef = this.roomRef.child('blocks');
 
-                                if (this.callbacks.onRoomUpdate) {
-                                    this.callbacks.onRoomUpdate({
+                            // 檢查房間是否存在
+                            this.roomRef.once('value')
+                                .then((snapshot) => {
+                                    const roomData = snapshot.val();
+
+                                    if (!roomData && !this.isHost) {
+                                        reject(new Error('房間不存在'));
+                                        return;
+                                    }
+
+                                    // 創建或加入房間
+                                    return this.joinRoom();
+                                })
+                                .then(() => {
+                                    this.isConnected = true;
+                                    this.setupListeners();
+
+                                    console.log(`已連接到房間: ${this.roomId}, 玩家ID: ${this.playerId}`);
+
+                                    resolve({
                                         roomId: this.roomId,
-                                        players: [{
-                                            id: this.playerId,
-                                            name: this.playerName,
-                                            isHost: this.isHost
-                                        }]
+                                        playerId: this.playerId,
+                                        isHost: this.isHost,
+                                        success: true
                                     });
-                                }
-
-                                // 確保返回正確的結果對象
-                                resolve({
-                                    roomId: this.roomId,
-                                    playerId: this.playerId,
-                                    isHost: this.isHost,
-                                    success: true
-                                });
-                            }, 1000);
+                                })
+                                .catch(reject);
 
                         } catch (error) {
                             reject(error);
@@ -787,174 +847,122 @@
                     });
                 }
 
-                async connectSignalingServer() {
-                    return new Promise((resolve, reject) => {
-                        try {
-                            this.signalingSocket = new WebSocket(this.signalingServer);
+                async joinRoom() {
+                    // 添加玩家到房間
+                    const playerData = {
+                        id: this.playerId,
+                        name: this.playerName,
+                        x: Math.random() * 20 - 10,
+                        y: 10,
+                        z: Math.random() * 20 - 10,
+                        angle: 0,
+                        pitch: 0,
+                        lastUpdate: firebase.database.ServerValue.TIMESTAMP,
+                        isHost: this.isHost,
+                        online: true
+                    };
 
-                            this.signalingSocket.onopen = () => {
-                                console.log('信令伺服器連接成功');
+                    await this.playersRef.child(this.playerId).set(playerData);
 
-                                // 加入房間
-                                this.signalingSocket.send(JSON.stringify({
-                                    type: 'join-room',
-                                    roomId: this.roomId,
-                                    playerId: this.playerId,
-                                    playerName: this.playerName,
-                                    isHost: this.isHost
-                                }));
+                    // 設置離線時自動移除
+                    this.playersRef.child(this.playerId).onDisconnect().remove();
 
-                                resolve();
-                            };
-
-                            this.signalingSocket.onmessage = (event) => {
-                                this.handleSignalingMessage(JSON.parse(event.data));
-                            };
-
-                            this.signalingSocket.onerror = (error) => {
-                                console.error('信令伺服器錯誤:', error);
-                                reject(error);
-                            };
-
-                            this.signalingSocket.onclose = () => {
-                                console.log('信令伺服器連接關閉');
-                            };
-
-                        } catch (error) {
-                            reject(error);
-                        }
-                    });
-                }
-
-                handleSignalingMessage(message) {
-                    switch (message.type) {
-                        case 'player-joined':
-                            this.handlePlayerJoined(message);
-                            break;
-                        case 'player-left':
-                            this.handlePlayerLeft(message);
-                            break;
-                        case 'webrtc-offer':
-                            this.handleWebRTCOffer(message);
-                            break;
-                        case 'webrtc-answer':
-                            this.handleWebRTCAnswer(message);
-                            break;
-                        case 'webrtc-ice-candidate':
-                            this.handleICECandidate(message);
-                            break;
-                    }
-                }
-
-                handlePlayerJoined(message) {
-                    if (message.playerId === this.playerId) return;
-
-                    console.log(`玩家 ${message.playerName} 加入房間`);
-
-                    // 如果是主機，創建WebRTC連接
+                    // 如果是主機，初始化房間數據
                     if (this.isHost) {
-                        this.createPeerConnection(message.playerId, message.playerName, true);
-                    }
-
-                    if (this.callbacks.onPlayerJoin) {
-                        this.callbacks.onPlayerJoin({
-                            id: message.playerId,
-                            name: message.playerName
+                        await this.roomRef.update({
+                            created: firebase.database.ServerValue.TIMESTAMP,
+                            host: this.playerId
                         });
                     }
                 }
 
-                createPeerConnection(peerId, peerName, initiator = false) {
-                    const peer = new SimplePeer({
-                        initiator: initiator,
-                        trickle: false
+                setupListeners() {
+                    // 監聽玩家加入/離開
+                    const playersListener = this.playersRef.on('child_added', (snapshot) => {
+                        const player = snapshot.val();
+                        if (player.id !== this.playerId) {
+                            this.otherPlayers.set(player.id, player);
+                            if (this.callbacks.onPlayerJoin) {
+                                this.callbacks.onPlayerJoin(player);
+                            }
+                            this.updateRoomInfo();
+                        }
                     });
 
-                    peer.on('signal', (data) => {
-                        // 發送WebRTC信令數據
-                        this.signalingSocket.send(JSON.stringify({
-                            type: initiator ? 'webrtc-offer' : 'webrtc-answer',
-                            roomId: this.roomId,
-                            fromPlayerId: this.playerId,
-                            toPlayerId: peerId,
-                            signalData: data
-                        }));
+                    const playersRemovedListener = this.playersRef.on('child_removed', (snapshot) => {
+                        const player = snapshot.val();
+                        if (player.id !== this.playerId) {
+                            this.otherPlayers.delete(player.id);
+                            if (this.callbacks.onPlayerLeave) {
+                                this.callbacks.onPlayerLeave(player);
+                            }
+                            this.updateRoomInfo();
+                        }
                     });
 
-                    peer.on('connect', () => {
-                        console.log(`與玩家 ${peerName} 建立P2P連接`);
-                        this.otherPlayers.set(peerId, {
-                            id: peerId,
-                            name: peerName,
-                            x: 0, y: 10, z: 0,
-                            angle: 0, pitch: 0
-                        });
-                    });
-
-                    peer.on('data', (data) => {
-                        this.handlePeerData(peerId, JSON.parse(data.toString()));
-                    });
-
-                    peer.on('error', (error) => {
-                        console.error(`P2P連接錯誤 (${peerName}):`, error);
-                    });
-
-                    this.peers.set(peerId, peer);
-                }
-
-                handleWebRTCOffer(message) {
-                    if (message.toPlayerId !== this.playerId) return;
-
-                    this.createPeerConnection(message.fromPlayerId, 'Unknown', false);
-                    const peer = this.peers.get(message.fromPlayerId);
-                    peer.signal(message.signalData);
-                }
-
-                handleWebRTCAnswer(message) {
-                    if (message.toPlayerId !== this.playerId) return;
-
-                    const peer = this.peers.get(message.fromPlayerId);
-                    if (peer) {
-                        peer.signal(message.signalData);
-                    }
-                }
-
-                handlePeerData(peerId, data) {
-                    switch (data.type) {
-                        case 'playerUpdate':
+                    // 監聽玩家位置更新
+                    const playersChangedListener = this.playersRef.on('child_changed', (snapshot) => {
+                        const player = snapshot.val();
+                        if (player.id !== this.playerId) {
+                            this.otherPlayers.set(player.id, player);
                             if (this.callbacks.onPlayerMove) {
-                                this.callbacks.onPlayerMove(data);
+                                this.callbacks.onPlayerMove({
+                                    type: 'playerUpdate',
+                                    playerId: player.id,
+                                    playerName: player.name,
+                                    x: player.x,
+                                    y: player.y,
+                                    z: player.z,
+                                    angle: player.angle,
+                                    pitch: player.pitch
+                                });
                             }
-                            break;
-                        case 'blockUpdate':
-                            if (this.callbacks.onBlockUpdate) {
-                                this.callbacks.onBlockUpdate(data);
-                            }
-                            break;
-                        case 'chatMessage':
+                        }
+                    });
+
+                    // 監聽聊天訊息
+                    const messagesListener = this.messagesRef.limitToLast(1).on('child_added', (snapshot) => {
+                        const message = snapshot.val();
+                        if (message.playerId !== this.playerId) {
                             if (this.callbacks.onChatMessage) {
-                                this.callbacks.onChatMessage(data);
+                                this.callbacks.onChatMessage(message);
                             }
-                            break;
-                    }
+                        }
+                    });
+
+                    // 監聽方塊更新
+                    const blocksListener = this.blocksRef.limitToLast(1).on('child_added', (snapshot) => {
+                        const blockUpdate = snapshot.val();
+                        if (blockUpdate.playerId !== this.playerId) {
+                            if (this.callbacks.onBlockUpdate) {
+                                this.callbacks.onBlockUpdate(blockUpdate);
+                            }
+                        }
+                    });
+
+                    // 保存監聽器引用以便清理
+                    this.listeners = [
+                        { ref: this.playersRef, event: 'child_added', listener: playersListener },
+                        { ref: this.playersRef, event: 'child_removed', listener: playersRemovedListener },
+                        { ref: this.playersRef, event: 'child_changed', listener: playersChangedListener },
+                        { ref: this.messagesRef, event: 'child_added', listener: messagesListener },
+                        { ref: this.blocksRef, event: 'child_added', listener: blocksListener }
+                    ];
                 }
 
                 sendPlayerUpdate(playerData) {
                     if (!this.isConnected) return;
 
-                    const updateData = {
-                        type: 'playerUpdate',
-                        playerId: this.playerId,
-                        playerName: this.playerName,
+                    this.playersRef.child(this.playerId).update({
                         x: playerData.x,
                         y: playerData.y,
                         z: playerData.z,
                         angle: playerData.angle,
                         pitch: playerData.pitch,
-                        timestamp: Date.now()
-                    };
-
-                    this.broadcastToPeers(updateData);
+                        lastUpdate: firebase.database.ServerValue.TIMESTAMP
+                    }).catch(error => {
+                        console.error('發送玩家更新失敗:', error);
+                    });
                 }
 
                 sendBlockUpdate(x, y, z, blockType, action) {
@@ -966,10 +974,12 @@
                         x: x, y: y, z: z,
                         blockType: blockType,
                         action: action,
-                        timestamp: Date.now()
+                        timestamp: firebase.database.ServerValue.TIMESTAMP
                     };
 
-                    this.broadcastToPeers(blockData);
+                    this.blocksRef.push(blockData).catch(error => {
+                        console.error('發送方塊更新失敗:', error);
+                    });
                 }
 
                 sendChatMessage(message) {
@@ -980,33 +990,47 @@
                         playerId: this.playerId,
                         playerName: this.playerName,
                         message: message.trim(),
-                        timestamp: Date.now()
+                        timestamp: firebase.database.ServerValue.TIMESTAMP
                     };
 
-                    this.broadcastToPeers(chatData);
-                }
-
-                broadcastToPeers(data) {
-                    this.peers.forEach((peer, peerId) => {
-                        if (peer.connected) {
-                            try {
-                                peer.send(JSON.stringify(data));
-                            } catch (error) {
-                                console.error(`發送數據到 ${peerId} 失敗:`, error);
-                            }
-                        }
+                    this.messagesRef.push(chatData).catch(error => {
+                        console.error('發送聊天訊息失敗:', error);
                     });
                 }
 
+                updateRoomInfo() {
+                    if (this.callbacks.onRoomUpdate) {
+                        const allPlayers = [
+                            {
+                                id: this.playerId,
+                                name: this.playerName,
+                                isHost: this.isHost
+                            },
+                            ...Array.from(this.otherPlayers.values())
+                        ];
+
+                        this.callbacks.onRoomUpdate({
+                            roomId: this.roomId,
+                            players: allPlayers
+                        });
+                    }
+                }
+
                 disconnect() {
-                    if (this.signalingSocket) {
-                        this.signalingSocket.close();
+                    // 清理所有監聽器
+                    this.listeners.forEach(({ ref, event, listener }) => {
+                        ref.off(event, listener);
+                    });
+                    this.listeners = [];
+
+                    // 移除玩家數據
+                    if (this.playersRef && this.playerId) {
+                        this.playersRef.child(this.playerId).remove();
                     }
 
-                    this.peers.forEach(peer => peer.destroy());
-                    this.peers.clear();
                     this.otherPlayers.clear();
                     this.isConnected = false;
+                    console.log('已斷開Firebase連接');
                 }
 
                 getOtherPlayers() {
@@ -1019,7 +1043,7 @@
                         roomId: this.roomId,
                         playerId: this.playerId,
                         playerName: this.playerName,
-                        playerCount: this.peers.size + 1,
+                        playerCount: this.otherPlayers.size + 1,
                         isHost: this.isHost
                     };
                 }
@@ -1156,8 +1180,7 @@
                     this.minimapCanvas.height = 180;
 
                     // 多人遊戲和聊天系統
-                    // 多人遊戲和聊天系統
-                    this.multiplayerManager = new WebRTCMultiplayerManager();
+                    this.multiplayerManager = new FirebaseMultiplayerManager();
                     this.chatSystem = new ChatSystem();
                     this.isMultiplayer = false;
 
@@ -1364,11 +1387,8 @@
                     document.getElementById('connectionStatus').textContent =
                         status.isConnected ? `房間 ${status.roomId}` : '離線';
                     document.getElementById('playerCount').textContent = status.playerCount;
-
-                    // 更新P2P狀態
-                    const p2pCount = this.multiplayerManager.peers ? this.multiplayerManager.peers.size : 0;
-                    document.getElementById('p2pStatus').textContent =
-                        p2pCount > 0 ? `${p2pCount} 個連接` : '未連接';
+                    document.getElementById('firebaseStatus').textContent =
+                        status.isConnected ? '已連接' : '離線';
                 }
 
                 // 更新房間資訊
@@ -2657,8 +2677,12 @@
                     this.gl.uniform3f(this.uniforms.lightDirection, 0.3, 0.8, 0.5);
                     this.gl.uniform3f(this.uniforms.ambientLight, 0.6, 0.6, 0.6);
 
-                    this.renderVisibleChunks();
-                    this.renderOtherPlayers();
+                    try {
+                        this.renderVisibleChunks();
+                        this.renderOtherPlayers();
+                    } catch (error) {
+                        console.error('渲染過程中發生錯誤:', error);
+                    }
                 }
 
                 renderVisibleChunks() {
@@ -2767,12 +2791,20 @@
                 }
 
                 // 渲染其他玩家
+                // 渲染其他玩家
                 renderOtherPlayers() {
                     if (!this.isMultiplayer) return;
 
+                    // 清理已離開玩家的名牌
+                    this.cleanupPlayerNameTags();
+
                     this.otherPlayers.forEach((player, playerId) => {
-                        this.renderPlayer(player);
-                        this.renderPlayerNameTag(player);
+                        try {
+                            this.renderPlayer(player);
+                            this.renderPlayerNameTag(player);
+                        } catch (error) {
+                            console.error(`渲染玩家 ${playerId} 時發生錯誤:`, error);
+                        }
                     });
                 }
 
@@ -2851,6 +2883,107 @@
                     } catch (error) {
                         console.error('渲染玩家時發生錯誤:', error);
                     }
+                }
+
+                // 清理已離開玩家的名牌
+                cleanupPlayerNameTags() {
+                    const nameTagContainer = document.getElementById('playerNameTags');
+                    if (!nameTagContainer) return;
+
+                    const existingTags = nameTagContainer.querySelectorAll('.player-nametag');
+                    existingTags.forEach(tag => {
+                        const playerId = tag.id.replace('nametag-', '');
+                        if (!this.otherPlayers.has(playerId)) {
+                            tag.remove();
+                        }
+                    });
+                }
+
+                // 渲染玩家名牌
+                renderPlayerNameTag(player) {
+                    // 將3D座標轉換為螢幕座標
+                    const screenPos = this.worldToScreen(player.x, player.y + 2.2, player.z);
+
+                    if (screenPos && screenPos.z > 0 && screenPos.z < 1) {
+                        // 檢查是否已存在名牌
+                        let nameTag = document.getElementById(`nametag-${player.id}`);
+
+                        if (!nameTag) {
+                            nameTag = document.createElement('div');
+                            nameTag.id = `nametag-${player.id}`;
+                            nameTag.className = 'player-nametag';
+                            nameTag.textContent = player.name;
+                            document.getElementById('playerNameTags').appendChild(nameTag);
+                        }
+
+                        // 更新位置
+                        nameTag.style.left = screenPos.x + 'px';
+                        nameTag.style.top = screenPos.y + 'px';
+                        nameTag.style.display = 'block';
+
+                        // 根據距離調整透明度
+                        const distance = Math.sqrt(
+                            Math.pow(player.x - this.player.x, 2) +
+                            Math.pow(player.z - this.player.z, 2)
+                        );
+                        const opacity = Math.max(0.3, Math.min(1.0, 1.0 - distance / 50));
+                        nameTag.style.opacity = opacity;
+
+                    } else {
+                        // 隱藏不可見的名牌
+                        const nameTag = document.getElementById(`nametag-${player.id}`);
+                        if (nameTag) {
+                            nameTag.style.display = 'none';
+                        }
+                    }
+                }
+
+                // 世界座標轉螢幕座標
+                worldToScreen(worldX, worldY, worldZ) {
+                    try {
+                        // 創建世界座標向量
+                        const worldPos = [worldX, worldY, worldZ, 1];
+
+                        // 應用視圖和投影變換
+                        const viewPos = this.multiplyMatrixVector(this.viewMatrix, worldPos);
+                        const clipPos = this.multiplyMatrixVector(this.projectionMatrix, viewPos);
+
+                        // 透視除法
+                        if (Math.abs(clipPos[3]) < 0.0001) return null;
+
+                        const ndcX = clipPos[0] / clipPos[3];
+                        const ndcY = clipPos[1] / clipPos[3];
+                        const ndcZ = clipPos[2] / clipPos[3];
+
+                        // 檢查是否在視錐內
+                        if (ndcZ < -1 || ndcZ > 1 || Math.abs(ndcX) > 1 || Math.abs(ndcY) > 1) {
+                            return null;
+                        }
+
+                        // 轉換為螢幕座標
+                        const screenX = (ndcX + 1) * 0.5 * this.canvas.width;
+                        const screenY = (1 - ndcY) * 0.5 * this.canvas.height;
+
+                        return {
+                            x: screenX,
+                            y: screenY,
+                            z: ndcZ
+                        };
+                    } catch (error) {
+                        console.error('座標轉換錯誤:', error);
+                        return null;
+                    }
+                }
+
+                // 矩陣向量乘法
+                multiplyMatrixVector(matrix, vector) {
+                    const result = [0, 0, 0, 0];
+                    for (let i = 0; i < 4; i++) {
+                        for (let j = 0; j < 4; j++) {
+                            result[i] += matrix[i * 4 + j] * vector[j];
+                        }
+                    }
+                    return result;
                 }
 
                 // 渲染玩家名牌
@@ -3111,7 +3244,7 @@
                         `${(this.player.angle * 180 / Math.PI).toFixed(0)}°`;
                     document.getElementById('blockCount').textContent = this.world.size;
                     document.getElementById('renderInfo').textContent =
-                        `WebGL ${this.flying ? '(飛行)' : '(生存)'}`;
+                        `WebGL ${this.flying ? '(飛行)' : '(生存)'} ${this.isMultiplayer ? '(多人)' : '(單人)'}`;
 
                     // 更新生物群落
                     const biome = this.getBiome(this.player.x, this.player.z);
@@ -3121,6 +3254,12 @@
                     document.getElementById('triangleCount').textContent = this.triangleCount;
                     document.getElementById('vertexCount').textContent = this.vertexCount;
                     document.getElementById('drawCalls').textContent = this.drawCalls;
+
+                    // 多人遊戲調試信息
+                    if (this.isMultiplayer) {
+                        const otherPlayerCount = this.otherPlayers.size;
+                        console.log(`其他玩家數量: ${otherPlayerCount}`);
+                    }
                 }
 
                 getBiome(x, z) {
