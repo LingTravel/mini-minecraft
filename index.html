@@ -69,6 +69,7 @@
             top: 9px;
         }
 
+        /* 改進的遊戲UI樣式 */
         #ui {
             position: absolute;
             top: 20px;
@@ -76,78 +77,267 @@
             color: #fff;
             text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
             z-index: 100;
-            background: rgba(0, 0, 0, 0.4);
-            padding: 15px;
-            border-radius: 10px;
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: linear-gradient(135deg, rgba(0, 0, 0, 0.8), rgba(20, 20, 20, 0.9));
+            padding: 20px;
+            border-radius: 15px;
+            backdrop-filter: blur(15px);
+            border: 2px solid rgba(0, 255, 136, 0.3);
             font-size: 14px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            min-width: 250px;
         }
 
         #ui div {
-            margin: 5px 0;
+            margin: 8px 0;
+            padding: 5px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
 
+        #ui div:last-child {
+            border-bottom: none;
+        }
+
+        #ui span {
+            color: #00ff88;
+            font-weight: bold;
+            text-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
+        }
+
+        /* 改進的物品欄樣式 */
         #inventory {
             position: absolute;
             bottom: 30px;
             left: 50%;
             transform: translateX(-50%);
             display: flex;
-            gap: 10px;
+            gap: 15px;
             z-index: 100;
-            background: rgba(0, 0, 0, 0.5);
-            padding: 15px;
-            border-radius: 15px;
-            backdrop-filter: blur(15px);
-            border: 2px solid rgba(255, 255, 255, 0.3);
+            background: linear-gradient(135deg, rgba(0, 0, 0, 0.9), rgba(30, 30, 30, 0.95));
+            padding: 20px;
+            border-radius: 20px;
+            backdrop-filter: blur(20px);
+            border: 3px solid rgba(0, 255, 136, 0.4);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
         }
 
         .inventory-slot {
-            width: 70px;
-            height: 70px;
-            border: 3px solid #555;
-            background: rgba(40, 40, 40, 0.9);
+            width: 80px;
+            height: 80px;
+            border: 3px solid rgba(255, 255, 255, 0.2);
+            background: linear-gradient(135deg, rgba(40, 40, 40, 0.9), rgba(60, 60, 60, 0.8));
             display: flex;
+            flex-direction: column;
             align-items: center;
             justify-content: center;
             color: white;
             font-weight: bold;
             cursor: pointer;
-            border-radius: 10px;
+            border-radius: 15px;
             transition: all 0.3s ease;
             position: relative;
             overflow: hidden;
         }
 
+        .inventory-slot::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+            transform: translateX(-100%);
+            transition: transform 0.6s;
+        }
+
+        .inventory-slot:hover::before {
+            transform: translateX(100%);
+        }
+
         .inventory-slot:hover {
-            transform: scale(1.1);
-            border-color: #888;
-            box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+            transform: scale(1.1) translateY(-5px);
+            border-color: rgba(0, 255, 136, 0.8);
+            box-shadow: 0 15px 30px rgba(0, 255, 136, 0.3);
+            background: linear-gradient(135deg, rgba(0, 255, 136, 0.2), rgba(0, 200, 100, 0.3));
         }
 
         .inventory-slot.active {
             border-color: #00ff88;
-            background: rgba(0, 255, 136, 0.2);
-            box-shadow: 0 0 25px rgba(0, 255, 136, 0.5);
-            animation: pulse 2s infinite;
+            background: linear-gradient(135deg, rgba(0, 255, 136, 0.3), rgba(0, 200, 100, 0.4));
+            box-shadow: 0 0 30px rgba(0, 255, 136, 0.6), inset 0 0 20px rgba(0, 255, 136, 0.2);
+            animation: activeSlot 2s infinite;
         }
 
-        @keyframes pulse {
+        @keyframes activeSlot {
 
             0%,
             100% {
-                box-shadow: 0 0 25px rgba(0, 255, 136, 0.5);
+                box-shadow: 0 0 30px rgba(0, 255, 136, 0.6), inset 0 0 20px rgba(0, 255, 136, 0.2);
             }
 
             50% {
-                box-shadow: 0 0 35px rgba(0, 255, 136, 0.8);
+                box-shadow: 0 0 40px rgba(0, 255, 136, 0.8), inset 0 0 30px rgba(0, 255, 136, 0.4);
             }
         }
 
         .inventory-slot .block-icon {
-            font-size: 2em;
+            font-size: 2.5em;
             text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+            margin-bottom: 5px;
+        }
+
+        .inventory-slot .block-name {
+            font-size: 0.8em;
+            opacity: 0.8;
+            text-align: center;
+        }
+
+        /* 改進的聊天系統樣式 */
+        #chatContainer {
+            position: absolute;
+            bottom: 140px;
+            left: 20px;
+            width: 450px;
+            height: 220px;
+            background: linear-gradient(135deg, rgba(0, 0, 0, 0.95), rgba(20, 20, 20, 0.9));
+            border-radius: 15px;
+            border: 2px solid rgba(0, 255, 136, 0.3);
+            z-index: 200;
+            display: flex;
+            flex-direction: column;
+            backdrop-filter: blur(20px);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+        }
+
+        #chatMessages {
+            flex: 1;
+            padding: 15px;
+            overflow-y: auto;
+            font-size: 14px;
+            color: white;
+        }
+
+        #chatMessages::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        #chatMessages::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 4px;
+        }
+
+        #chatMessages::-webkit-scrollbar-thumb {
+            background: rgba(0, 255, 136, 0.5);
+            border-radius: 4px;
+        }
+
+        .chat-message {
+            margin: 5px 0;
+            padding: 8px 12px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            border-left: 3px solid rgba(0, 255, 136, 0.5);
+            animation: messageSlide 0.3s ease-out;
+        }
+
+        @keyframes messageSlide {
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .chat-message.system {
+            color: #ffff00;
+            font-style: italic;
+            border-left-color: #ffff00;
+            background: rgba(255, 255, 0, 0.1);
+        }
+
+        .chat-message.player {
+            color: #00ff88;
+            border-left-color: #00ff88;
+        }
+
+        #chatInput {
+            display: flex;
+            padding: 15px;
+            border-top: 1px solid rgba(255, 255, 255, 0.2);
+            gap: 10px;
+        }
+
+        #messageInput {
+            flex: 1;
+            padding: 12px 15px;
+            border: 2px solid rgba(0, 255, 136, 0.3);
+            border-radius: 25px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            font-size: 14px;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+
+        #messageInput:focus {
+            border-color: #00ff88;
+            box-shadow: 0 0 20px rgba(0, 255, 136, 0.3);
+            background: rgba(0, 0, 0, 0.9);
+        }
+
+        #sendMessage {
+            padding: 12px 20px;
+            background: linear-gradient(45deg, #00ff88, #00cc6a);
+            color: black;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 255, 136, 0.3);
+        }
+
+        #sendMessage:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 255, 136, 0.5);
+        }
+
+        /* 改進的FPS和小地圖樣式 */
+        #fps {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            color: #00ff88;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+            z-index: 100;
+            background: linear-gradient(135deg, rgba(0, 0, 0, 0.8), rgba(20, 20, 20, 0.9));
+            padding: 15px 20px;
+            border-radius: 15px;
+            font-weight: bold;
+            border: 2px solid rgba(0, 255, 136, 0.3);
+            backdrop-filter: blur(15px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        #minimap {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            width: 200px;
+            height: 200px;
+            background: linear-gradient(135deg, rgba(0, 0, 0, 0.9), rgba(20, 20, 20, 0.95));
+            border: 3px solid #00ff88;
+            border-radius: 20px;
+            z-index: 100;
+            box-shadow: 0 10px 40px rgba(0, 255, 136, 0.3);
+            backdrop-filter: blur(15px);
         }
     </style>
 </head>
@@ -176,15 +366,43 @@
         <div id="inventory">
             <div class="inventory-slot active" data-block="grass">
                 <div class="block-icon">🟩</div>
+                <div class="block-name">草地</div>
             </div>
             <div class="inventory-slot" data-block="stone">
                 <div class="block-icon">⬜</div>
+                <div class="block-name">石頭</div>
             </div>
             <div class="inventory-slot" data-block="wood">
                 <div class="block-icon">🟫</div>
+                <div class="block-name">木頭</div>
             </div>
             <div class="inventory-slot" data-block="water">
                 <div class="block-icon">🟦</div>
+                <div class="block-name">水</div>
+            </div>
+            <div class="inventory-slot" data-block="sand">
+                <div class="block-icon">🟨</div>
+                <div class="block-name">沙子</div>
+            </div>
+            <div class="inventory-slot" data-block="snow">
+                <div class="block-icon">❄️</div>
+                <div class="block-name">雪</div>
+            </div>
+            <div class="inventory-slot" data-block="leaves">
+                <div class="block-icon">🟢</div>
+                <div class="block-name">樹葉</div>
+            </div>
+            <div class="inventory-slot" data-block="cobblestone">
+                <div class="block-icon">🔘</div>
+                <div class="block-name">鵝卵石</div>
+            </div>
+            <div class="inventory-slot" data-block="brick">
+                <div class="block-icon">🧱</div>
+                <div class="block-name">磚塊</div>
+            </div>
+            <div class="inventory-slot" data-block="glass">
+                <div class="block-icon">🔷</div>
+                <div class="block-name">玻璃</div>
             </div>
         </div>
         <!-- 暫停選單 -->
@@ -669,6 +887,90 @@
             text-align: center;
             z-index: 300;
             border: 2px solid #ff4444;
+        }
+
+        /* 響應式設計 */
+        @media (max-width: 768px) {
+            #ui {
+                font-size: 12px;
+                padding: 10px;
+                min-width: 200px;
+            }
+
+            .inventory-slot {
+                width: 60px;
+                height: 60px;
+            }
+
+            .inventory-slot .block-icon {
+                font-size: 1.8em;
+                margin-bottom: 2px;
+            }
+
+            .inventory-slot .block-name {
+                font-size: 0.7em;
+            }
+
+            #inventory {
+                bottom: 20px;
+                padding: 15px;
+                gap: 8px;
+                flex-wrap: wrap;
+                max-width: 90%;
+            }
+
+            .menu-container {
+                padding: 20px;
+                max-width: 90%;
+            }
+
+            .menu-container h2 {
+                font-size: 2em;
+            }
+
+            #minimap {
+                width: 120px;
+                height: 120px;
+            }
+
+            #chatContainer {
+                width: 300px;
+                height: 150px;
+                bottom: 100px;
+            }
+
+            #chatMessages {
+                font-size: 12px;
+                padding: 10px;
+            }
+
+            #messageInput {
+                font-size: 12px;
+                padding: 8px 12px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            #inventory {
+                flex-wrap: wrap;
+                justify-content: center;
+                max-height: 200px;
+                overflow-y: auto;
+            }
+
+            .inventory-slot {
+                width: 50px;
+                height: 50px;
+                margin: 2px;
+            }
+
+            .inventory-slot .block-icon {
+                font-size: 1.5em;
+            }
+
+            .inventory-slot .block-name {
+                font-size: 0.6em;
+            }
         }
 
         /* 響應式設計 */
@@ -1217,6 +1519,7 @@
                     this.jumpPower = 0.4;
 
                     // 方塊類型
+                    // 擴展的方塊類型系統
                     this.blockTypes = {
                         grass: {
                             colors: {
@@ -1224,7 +1527,9 @@
                                 side: [0.4, 0.5, 0.2],
                                 bottom: [0.3, 0.2, 0.1]
                             },
-                            id: 1
+                            id: 1,
+                            name: '草地',
+                            icon: '🟩'
                         },
                         stone: {
                             colors: {
@@ -1232,7 +1537,9 @@
                                 side: [0.6, 0.6, 0.6],
                                 bottom: [0.4, 0.4, 0.4]
                             },
-                            id: 2
+                            id: 2,
+                            name: '石頭',
+                            icon: '⬜'
                         },
                         wood: {
                             colors: {
@@ -1240,7 +1547,9 @@
                                 side: [0.4, 0.2, 0.1],
                                 bottom: [0.7, 0.5, 0.2]
                             },
-                            id: 3
+                            id: 3,
+                            name: '木頭',
+                            icon: '🟫'
                         },
                         water: {
                             colors: {
@@ -1249,7 +1558,72 @@
                                 bottom: [0.1, 0.4, 0.8]
                             },
                             id: 4,
-                            transparent: true
+                            transparent: true,
+                            alpha: 0.6,  // 60%不透明 = 40%透明
+                            name: '水',
+                            icon: '🟦'
+                        },
+                        sand: {
+                            colors: {
+                                top: [0.9, 0.8, 0.4],
+                                side: [0.8, 0.7, 0.3],
+                                bottom: [0.7, 0.6, 0.2]
+                            },
+                            id: 5,
+                            name: '沙子',
+                            icon: '🟨'
+                        },
+                        snow: {
+                            colors: {
+                                top: [0.95, 0.95, 1.0],
+                                side: [0.9, 0.9, 0.95],
+                                bottom: [0.85, 0.85, 0.9]
+                            },
+                            id: 6,
+                            name: '雪',
+                            icon: '❄️'
+                        },
+                        leaves: {
+                            colors: {
+                                top: [0.2, 0.7, 0.2],
+                                side: [0.1, 0.6, 0.1],
+                                bottom: [0.15, 0.5, 0.15]
+                            },
+                            id: 7,
+                            name: '樹葉',
+                            icon: '🟢'
+                        },
+                        cobblestone: {
+                            colors: {
+                                top: [0.5, 0.5, 0.5],
+                                side: [0.4, 0.4, 0.4],
+                                bottom: [0.3, 0.3, 0.3]
+                            },
+                            id: 8,
+                            name: '鵝卵石',
+                            icon: '🔘'
+                        },
+                        brick: {
+                            colors: {
+                                top: [0.8, 0.3, 0.2],
+                                side: [0.7, 0.2, 0.1],
+                                bottom: [0.6, 0.1, 0.0]
+                            },
+                            id: 9,
+                            name: '磚塊',
+                            icon: '🧱'
+                        },
+                        glass: {
+                            colors: {
+                                top: [0.8, 0.9, 1.0],
+                                side: [0.7, 0.8, 0.9],
+                                bottom: [0.6, 0.7, 0.8]
+                            },
+                            id: 10,
+                            transparent: true,
+                            alpha: 0.8,  // 80%不透明 = 20%透明
+                            name: '玻璃',
+                            icon: '🔷'
                         }
                     };
 
@@ -1497,6 +1871,7 @@
         attribute vec3 aPosition;
         attribute vec3 aColor;
         attribute vec3 aNormal;
+        attribute float aAlpha;
         
         uniform mat4 uProjectionMatrix;
         uniform mat4 uViewMatrix;
@@ -1506,6 +1881,7 @@
         
         varying vec3 vColor;
         varying float vLighting;
+        varying float vAlpha;
         
         void main() {
             vec4 worldPosition = uModelMatrix * vec4(aPosition, 1.0);
@@ -1517,6 +1893,7 @@
             vLighting = uAmbientLight.x + directional * 0.7;
             
             vColor = aColor;
+            vAlpha = aAlpha;
         }
     `;
 
@@ -1526,6 +1903,7 @@
         
         varying vec3 vColor;
         varying float vLighting;
+        varying float vAlpha;
         
         void main() {
             // 添加環境光和漫反射光照
@@ -1538,7 +1916,7 @@
             vec3 fogColor = vec3(0.7, 0.8, 0.9);
             finalColor = mix(finalColor, fogColor, fogFactor * 0.3);
             
-            gl_FragColor = vec4(finalColor, 1.0);
+            gl_FragColor = vec4(finalColor, vAlpha);
         }
     `;
 
@@ -1562,7 +1940,8 @@
                     this.attributes = {
                         position: this.gl.getAttribLocation(this.shaderProgram, 'aPosition'),
                         color: this.gl.getAttribLocation(this.shaderProgram, 'aColor'),
-                        normal: this.gl.getAttribLocation(this.shaderProgram, 'aNormal')
+                        normal: this.gl.getAttribLocation(this.shaderProgram, 'aNormal'),
+                        alpha: this.gl.getAttribLocation(this.shaderProgram, 'aAlpha')
                     };
 
                     this.uniforms = {
@@ -1593,6 +1972,7 @@
                     this.buffers.position = this.gl.createBuffer();
                     this.buffers.color = this.gl.createBuffer();
                     this.buffers.normal = this.gl.createBuffer();
+                    this.buffers.alpha = this.gl.createBuffer();  // 添加alpha緩衝區
                     this.buffers.index = this.gl.createBuffer();
                 }
 
@@ -1611,8 +1991,9 @@
                     this.gl.cullFace(this.gl.BACK);
                     this.gl.frontFace(this.gl.CCW);
 
-                    // 禁用混合模式
+                    // 混合模式設置（預設禁用，渲染時啟用）
                     this.gl.disable(this.gl.BLEND);
+                    this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA);
 
                     // 設置清空值
                     this.gl.clearColor(0.5, 0.7, 1.0, 1.0);
@@ -1944,10 +2325,10 @@
                             return;
                         }
 
-                        // T鍵開啟聊天
+                        // T鍵開啟聊天 - 修改版
                         if (e.code === 'KeyT' && this.gameStarted && !this.isPaused && this.isMultiplayer) {
                             e.preventDefault();
-                            this.chatSystem.activateInput();
+                            this.activateChat();  // ← 改為調用新的方法
                             return;
                         }
 
@@ -1961,9 +2342,12 @@
                                     this.chatSystem.sendMessage(message, this.multiplayerManager);
                                     input.value = '';
                                 }
-                                this.chatSystem.hide();
+                                this.deactivateChat();  // ← 改為調用新的方法
+                            } else if (e.code === 'Escape') {
+                                e.preventDefault();
+                                this.deactivateChat();  // ← 添加ESC鍵處理
                             }
-                            return; // 聊天激活時不處理其他遊戲按鍵
+                            return;
                         }
 
                         // 遊戲暫停時不處理移動按鍵
@@ -2007,6 +2391,7 @@
                     });
 
                     // 滑鼠滾輪切換物品
+                    // 滑鼠滾輪切換物品
                     this.canvas.addEventListener('wheel', (e) => {
                         if (!this.gameStarted || this.isPaused || this.chatSystem.isInputActive) return;
 
@@ -2026,6 +2411,9 @@
 
                         this.selectedBlock = blockTypes[newIndex];
                         this.updateInventoryUI();
+
+                        // 顯示切換提示
+                        this.showBlockSwitchNotification();
                     });
 
                     document.addEventListener('pointerlockchange', () => {
@@ -2126,6 +2514,99 @@
                     });
                 }
 
+                // 激活聊天模式
+                activateChat() {
+                    this.chatSystem.show();
+                    this.chatSystem.isInputActive = true;
+
+                    // 釋放滑鼠鎖定，允許滑鼠移動
+                    if (this.mouse.locked) {
+                        document.exitPointerLock();
+                        this.mouse.wasLocked = true; // 記住之前是否鎖定
+                    }
+
+                    const input = document.getElementById('messageInput');
+                    input.focus();
+                    input.placeholder = '輸入訊息...';
+
+                    // 添加聊天模式指示
+                    document.getElementById('chatContainer').style.borderColor = '#00ff88';
+                }
+
+                // 停用聊天模式
+                deactivateChat() {
+                    this.chatSystem.isInputActive = false;
+
+                    // 恢復滑鼠鎖定
+                    if (this.mouse.wasLocked && this.gameStarted && !this.isPaused) {
+                        this.canvas.requestPointerLock();
+                        this.mouse.wasLocked = false;
+                    }
+
+                    const input = document.getElementById('messageInput');
+                    input.blur();
+                    input.placeholder = '按T開始聊天...';
+
+                    // 移除聊天模式指示
+                    document.getElementById('chatContainer').style.borderColor = 'rgba(0, 255, 136, 0.3)';
+                }
+
+                // 顯示方塊切換通知
+                // 顯示方塊切換通知
+                showBlockSwitchNotification() {
+                    const blockInfo = this.blockTypes[this.selectedBlock];
+                    if (!blockInfo) return;
+
+                    // 創建或更新通知元素
+                    let notification = document.getElementById('blockSwitchNotification');
+                    if (!notification) {
+                        notification = document.createElement('div');
+                        notification.id = 'blockSwitchNotification';
+                        notification.style.cssText = `
+                        position: absolute;
+                        top: 50%;
+                        left: 50%;
+                        transform: translate(-50%, -50%);
+                        background: linear-gradient(135deg, rgba(0, 0, 0, 0.9), rgba(20, 20, 20, 0.95));
+                        color: #00ff88;
+                        padding: 15px 25px;
+                        border-radius: 15px;
+                        border: 2px solid rgba(0, 255, 136, 0.5);
+                        font-size: 18px;
+                        font-weight: bold;
+                        z-index: 300;
+                        pointer-events: none;
+                        backdrop-filter: blur(10px);
+                        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+                        opacity: 0;
+                        transition: opacity 0.3s ease;
+                    `;
+                        document.body.appendChild(notification);
+                    }
+
+                    // 更新內容，為透明方塊添加特殊標記
+                    const transparentText = blockInfo.transparent ? ' (透明)' : '';
+                    notification.innerHTML = `
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span style="font-size: 24px;">${blockInfo.icon}</span>
+                        <span>${blockInfo.name}${transparentText}</span>
+                    </div>
+                `;
+
+                    // 顯示動畫
+                    notification.style.opacity = '1';
+
+                    // 清除之前的定時器
+                    if (this.notificationTimeout) {
+                        clearTimeout(this.notificationTimeout);
+                    }
+
+                    // 1.5秒後隱藏
+                    this.notificationTimeout = setTimeout(() => {
+                        notification.style.opacity = '0';
+                    }, 1500);
+                }
+
                 startGame() {
                     if (!this.worldGenerated) {
                         alert('世界還在生成中，請稍候...');
@@ -2184,8 +2665,9 @@
                         const startTime = Date.now();
                         let progress = 0;
 
-                        // 生成高度圖
+                        // 生成高度圖和生物群落圖
                         const heightMap = this.generateHeightMap();
+                        const biomeMap = this.generateBiomeMap();  // ← 確保這行存在
 
                         const generateChunk = (chunkX, chunkZ) => {
                             console.log(`開始生成區塊 (${chunkX}, ${chunkZ})`);
@@ -2204,6 +2686,7 @@
                                     if (Math.abs(worldX) >= this.worldSize / 2 || Math.abs(worldZ) >= this.worldSize / 2) continue;
 
                                     const height = heightMap[worldX + this.worldSize / 2][worldZ + this.worldSize / 2];
+                                    const biome = biomeMap[worldX + this.worldSize / 2][worldZ + this.worldSize / 2];
 
                                     // 基岩層（最底層）
                                     for (let y = -3; y <= -1; y++) {
@@ -2211,21 +2694,55 @@
                                         blocksGenerated++;
                                     }
 
-                                    // 地下石頭層
-                                    for (let y = 0; y < height - 1; y++) {
+                                    // 地下層
+                                    for (let y = 0; y < height - 2; y++) {
                                         this.setBlock(worldX, y, worldZ, 'stone');
                                         blocksGenerated++;
                                     }
 
-                                    // 表面草地
-                                    if (height >= 0) {
-                                        this.setBlock(worldX, height, worldZ, 'grass');
+                                    // 次表面層（根據生物群落）
+                                    if (height >= 1) {
+                                        let subSurfaceBlock = 'stone';
+                                        switch (biome) {
+                                            case 'desert':
+                                                subSurfaceBlock = 'sand';
+                                                break;
+                                            case 'snow':
+                                                subSurfaceBlock = 'stone';
+                                                break;
+                                            default:
+                                                subSurfaceBlock = 'stone';
+                                        }
+                                        this.setBlock(worldX, height - 1, worldZ, subSurfaceBlock);
                                         blocksGenerated++;
                                     }
 
-                                    // 生成樹木（降低密度）
-                                    if (Math.random() < 0.02 && height > 2) {
-                                        this.generateSimpleTree(worldX, height + 1, worldZ);
+                                    // 表面方塊（根據生物群落）
+                                    if (height >= 0) {
+                                        let surfaceBlock = 'grass';
+                                        switch (biome) {
+                                            case 'desert':
+                                                surfaceBlock = 'sand';
+                                                break;
+                                            case 'snow':
+                                                surfaceBlock = 'snow';
+                                                break;
+                                            case 'forest':
+                                                surfaceBlock = 'grass';
+                                                break;
+                                            case 'jungle':
+                                                surfaceBlock = 'grass';
+                                                break;
+                                            default:
+                                                surfaceBlock = 'grass';
+                                        }
+                                        this.setBlock(worldX, height, worldZ, surfaceBlock);
+                                        blocksGenerated++;
+                                    }
+
+                                    // 生成植被（根據生物群落）
+                                    if (height > 2 && Math.random() < this.getVegetationChance(biome)) {
+                                        this.generateVegetation(worldX, height + 1, worldZ, biome);
                                     }
 
                                     // 水體（海平面為0）
@@ -2281,6 +2798,13 @@
 
                             if (processedChunks >= totalChunks) {
                                 this.worldGenerated = true;
+
+                                // 強制重新生成所有區塊以應用透明度
+                                console.log('重新生成區塊以應用透明度...');
+                                setTimeout(() => {
+                                    this.regenerateAllChunks();
+                                }, 1000);
+
                                 console.log(`世界生成完成，耗時: ${Date.now() - startTime}ms`);
                                 console.log(`總共生成了 ${this.world.size} 個方塊`);
                                 resolve();
@@ -2293,26 +2817,179 @@
                     });
                 }
 
+                // 獲取植被生成機率
+                getVegetationChance(biome) {
+                    switch (biome) {
+                        case 'forest': return 0.08;
+                        case 'jungle': return 0.12;
+                        case 'plains': return 0.03;
+                        case 'desert': return 0.005;
+                        case 'snow': return 0.01;
+                        default: return 0.02;
+                    }
+                }
+
+                // 生成植被
+                generateVegetation(x, y, z, biome) {
+                    switch (biome) {
+                        case 'forest':
+                            if (Math.random() < 0.7) {
+                                this.generateTree(x, y, z, 'wood', 'leaves');
+                            }
+                            break;
+                        case 'jungle':
+                            if (Math.random() < 0.8) {
+                                this.generateTree(x, y, z, 'wood', 'leaves', true); // 高樹
+                            }
+                            break;
+                        case 'desert':
+                            // 仙人掌
+                            if (Math.random() < 0.3) {
+                                this.generateCactus(x, y, z);
+                            }
+                            break;
+                        case 'snow':
+                            // 雪松
+                            if (Math.random() < 0.5) {
+                                this.generateTree(x, y, z, 'wood', 'leaves');
+                            }
+                            break;
+                        default:
+                            if (Math.random() < 0.5) {
+                                this.generateTree(x, y, z, 'wood', 'leaves');
+                            }
+                    }
+                }
+
+                // 生成樹木
+                generateTree(x, y, z, trunkType = 'wood', leafType = 'leaves', tall = false) {
+                    const height = tall ? 5 + Math.floor(Math.random() * 3) : 3 + Math.floor(Math.random() * 2);
+
+                    // 樹幹
+                    for (let i = 0; i < height; i++) {
+                        this.setBlock(x, y + i, z, trunkType);
+                    }
+
+                    // 樹葉（更自然的形狀）
+                    const leafY = y + height;
+                    const leafRadius = tall ? 3 : 2;
+
+                    for (let dx = -leafRadius; dx <= leafRadius; dx++) {
+                        for (let dz = -leafRadius; dz <= leafRadius; dz++) {
+                            for (let dy = -1; dy <= 1; dy++) {
+                                const distance = Math.sqrt(dx * dx + dz * dz + dy * dy);
+                                if (distance <= leafRadius && Math.random() < 0.8) {
+                                    this.setBlock(x + dx, leafY + dy, z + dz, leafType);
+                                }
+                            }
+                        }
+                    }
+
+                    // 樹頂
+                    this.setBlock(x, leafY + 1, z, leafType);
+                }
+
+                // 生成仙人掌
+                generateCactus(x, y, z) {
+                    const height = 2 + Math.floor(Math.random() * 3);
+                    for (let i = 0; i < height; i++) {
+                        this.setBlock(x, y + i, z, 'leaves'); // 用綠色方塊代表仙人掌
+                    }
+                }
+
+                // 重新生成所有區塊
+                regenerateAllChunks() {
+                    const chunksPerSide = Math.ceil(this.worldSize / 16);
+                    for (let chunkX = 0; chunkX < chunksPerSide; chunkX++) {
+                        for (let chunkZ = 0; chunkZ < chunksPerSide; chunkZ++) {
+                            try {
+                                this.generateChunkMesh(chunkX, chunkZ);
+                            } catch (error) {
+                                console.error(`重新生成區塊 (${chunkX}, ${chunkZ}) 失敗:`, error);
+                            }
+                        }
+                    }
+                    console.log('所有區塊重新生成完成');
+                }
+
                 generateHeightMap() {
                     const heightMap = [];
                     for (let x = 0; x < this.worldSize; x++) {
                         heightMap[x] = [];
                         for (let z = 0; z < this.worldSize; z++) {
-                            // 改進的噪聲算法
                             const nx = (x - this.worldSize / 2) / this.worldSize;
                             const nz = (z - this.worldSize / 2) / this.worldSize;
 
-                            // 多層噪聲疊加
-                            const noise1 = this.improvedNoise(nx * 4, nz * 4) * 6;
-                            const noise2 = this.improvedNoise(nx * 8, nz * 8) * 3;
-                            const noise3 = this.improvedNoise(nx * 16, nz * 16) * 1.5;
+                            // 多層噪聲疊加 - 更複雜的地形
+                            const continentalNoise = this.improvedNoise(nx * 0.5, nz * 0.5) * 15; // 大陸架
+                            const mountainNoise = this.improvedNoise(nx * 2, nz * 2) * 8; // 山脈
+                            const hillNoise = this.improvedNoise(nx * 4, nz * 4) * 4; // 丘陵
+                            const detailNoise = this.improvedNoise(nx * 8, nz * 8) * 2; // 細節
+                            const microNoise = this.improvedNoise(nx * 16, nz * 16) * 1; // 微細節
 
-                            // 基礎高度 + 噪聲
-                            const baseHeight = 2;
-                            heightMap[x][z] = Math.floor(baseHeight + noise1 + noise2 + noise3);
+                            // 河流系統
+                            const riverNoise = Math.abs(this.improvedNoise(nx * 3, nz * 1.5));
+                            const isRiver = riverNoise < 0.1;
+
+                            // 基礎高度計算
+                            let height = 3 + continentalNoise + mountainNoise + hillNoise + detailNoise + microNoise;
+
+                            // 河流會降低地形
+                            if (isRiver) {
+                                height -= 5;
+                            }
+
+                            // 創建海岸線效果
+                            const distanceFromCenter = Math.sqrt(nx * nx + nz * nz);
+                            if (distanceFromCenter > 0.7) {
+                                height -= (distanceFromCenter - 0.7) * 20;
+                            }
+
+                            heightMap[x][z] = Math.floor(Math.max(-5, height));
                         }
                     }
                     return heightMap;
+                }
+
+                // 改進的噪聲函數
+                improvedNoise(x, z) {
+                    // 使用多個正弦波疊加產生更自然的噪聲
+                    const n1 = Math.sin(x * 2.1 + z * 1.7) * 0.5;
+                    const n2 = Math.sin(x * 1.3 - z * 2.3) * 0.3;
+                    const n3 = Math.sin(x * 3.7 + z * 0.9) * 0.2;
+                    const n4 = Math.sin(x * 5.1 + z * 4.7) * 0.1;
+                    const n5 = Math.sin(x * 7.3 - z * 6.1) * 0.05;
+                    return (n1 + n2 + n3 + n4 + n5);
+                }
+
+                // 生成生物群落圖
+                generateBiomeMap() {
+                    const biomeMap = [];
+                    for (let x = 0; x < this.worldSize; x++) {
+                        biomeMap[x] = [];
+                        for (let z = 0; z < this.worldSize; z++) {
+                            const nx = (x - this.worldSize / 2) / this.worldSize;
+                            const nz = (z - this.worldSize / 2) / this.worldSize;
+
+                            // 溫度和濕度噪聲
+                            const temperature = this.improvedNoise(nx * 2.5, nz * 2.5);
+                            const humidity = this.improvedNoise(nx * 3.1 + 100, nz * 3.1 + 100);
+
+                            // 根據溫度和濕度決定生物群落
+                            if (temperature > 0.3 && humidity < -0.2) {
+                                biomeMap[x][z] = 'desert';
+                            } else if (temperature < -0.3) {
+                                biomeMap[x][z] = 'snow';
+                            } else if (humidity > 0.4) {
+                                biomeMap[x][z] = 'forest';
+                            } else if (temperature > 0.1 && humidity > 0.1) {
+                                biomeMap[x][z] = 'jungle';
+                            } else {
+                                biomeMap[x][z] = 'plains';
+                            }
+                        }
+                    }
+                    return biomeMap;
                 }
 
                 // 改進的噪聲函數
@@ -2474,7 +3151,6 @@
                 generateChunkMesh(chunkX, chunkZ) {
                     console.log(`開始生成區塊網格 (${chunkX}, ${chunkZ})`);
 
-                    // 添加邊界檢查
                     if (chunkX < 0 || chunkZ < 0 ||
                         chunkX >= Math.ceil(this.worldSize / 16) ||
                         chunkZ >= Math.ceil(this.worldSize / 16)) {
@@ -2486,6 +3162,7 @@
                     const vertices = [];
                     const colors = [];
                     const normals = [];
+                    const alphas = [];  // 添加透明度數組
                     const indices = [];
                     let indexOffset = 0;
 
@@ -2494,72 +3171,75 @@
 
                     for (let x = 0; x < chunkSize; x++) {
                         for (let z = 0; z < chunkSize; z++) {
-                            for (let y = -5; y < 20; y++) {
+                            for (let y = -10; y < 50; y++) {
                                 const worldX = startX + x;
                                 const worldZ = startZ + z;
                                 const blockType = this.getBlock(worldX, y, worldZ);
 
                                 if (!blockType) continue;
 
-                                // 檢查每個面是否需要渲染
                                 const faces = [
-                                    { dir: [0, 1, 0], visible: this.shouldRenderFace(worldX, y + 1, worldZ, blockType) }, // 上
-                                    { dir: [0, -1, 0], visible: this.shouldRenderFace(worldX, y - 1, worldZ, blockType) }, // 下
-                                    { dir: [1, 0, 0], visible: this.shouldRenderFace(worldX + 1, y, worldZ, blockType) }, // 右
-                                    { dir: [-1, 0, 0], visible: this.shouldRenderFace(worldX - 1, y, worldZ, blockType) }, // 左
-                                    { dir: [0, 0, 1], visible: this.shouldRenderFace(worldX, y, worldZ + 1, blockType) }, // 前
-                                    { dir: [0, 0, -1], visible: this.shouldRenderFace(worldX, y, worldZ - 1, blockType) } // 後
+                                    { dir: [0, 1, 0], visible: this.shouldRenderFace(worldX, y + 1, worldZ, blockType) },
+                                    { dir: [0, -1, 0], visible: this.shouldRenderFace(worldX, y - 1, worldZ, blockType) },
+                                    { dir: [1, 0, 0], visible: this.shouldRenderFace(worldX + 1, y, worldZ, blockType) },
+                                    { dir: [-1, 0, 0], visible: this.shouldRenderFace(worldX - 1, y, worldZ, blockType) },
+                                    { dir: [0, 0, 1], visible: this.shouldRenderFace(worldX, y, worldZ + 1, blockType) },
+                                    { dir: [0, 0, -1], visible: this.shouldRenderFace(worldX, y, worldZ - 1, blockType) }
                                 ];
 
                                 faces.forEach((face, faceIndex) => {
                                     if (!face.visible) return;
 
                                     const faceVertices = this.getFaceVertices(worldX, y, worldZ, faceIndex);
-
-                                    // 確保方塊類型存在
                                     const blockInfo = this.blockTypes[blockType];
+
                                     if (!blockInfo) {
                                         console.warn(`未知方塊類型: ${blockType}`);
                                         return;
                                     }
 
+                                    // 獲取方塊透明度
+                                    const blockAlpha = blockInfo.alpha || 1.0;
+
                                     // 根據面的方向選擇顏色
                                     let blockColor;
                                     if (blockInfo.colors) {
                                         switch (faceIndex) {
-                                            case 0: // 上面
-                                                blockColor = blockInfo.colors.top;
-                                                break;
-                                            case 1: // 下面
-                                                blockColor = blockInfo.colors.bottom;
-                                                break;
-                                            default: // 側面 (2,3,4,5)
-                                                blockColor = blockInfo.colors.side;
-                                                break;
+                                            case 0: blockColor = blockInfo.colors.top; break;
+                                            case 1: blockColor = blockInfo.colors.bottom; break;
+                                            default: blockColor = blockInfo.colors.side; break;
                                         }
                                     } else {
                                         blockColor = blockInfo.color || [0.5, 0.5, 0.5];
                                     }
 
-                                    // 確保顏色數組有效
                                     if (!blockColor || blockColor.length !== 3) {
-                                        console.warn(`無效的方塊顏色: ${blockType}`, blockColor);
-                                        blockColor = [0.5, 0.5, 0.5]; // 預設灰色
+                                        blockColor = [0.5, 0.5, 0.5];
                                     }
 
-                                    // 添加面向光照的陰影效果
+                                    // 計算光照
                                     const shadeFactor = this.calculateFaceShading(faceIndex, face.dir);
-                                    const shadedColor = [
+                                    let shadedColor = [
                                         Math.max(0, Math.min(1, blockColor[0] * shadeFactor)),
                                         Math.max(0, Math.min(1, blockColor[1] * shadeFactor)),
                                         Math.max(0, Math.min(1, blockColor[2] * shadeFactor))
                                     ];
 
-                                    // 添加頂點
+                                    // 透明方塊增加亮度
+                                    if (blockInfo.transparent) {
+                                        shadedColor = [
+                                            Math.min(1, shadedColor[0] * 1.2),
+                                            Math.min(1, shadedColor[1] * 1.2),
+                                            Math.min(1, shadedColor[2] * 1.2)
+                                        ];
+                                    }
+
+                                    // 添加頂點數據
                                     for (let i = 0; i < 4; i++) {
                                         vertices.push(...faceVertices[i]);
                                         colors.push(...shadedColor);
                                         normals.push(...face.dir);
+                                        alphas.push(blockAlpha);  // 添加透明度數據
                                     }
 
                                     indices.push(
@@ -2572,13 +3252,12 @@
                         }
                     }
 
-                    console.log(`區塊 (${chunkX}, ${chunkZ}) 網格統計: 頂點=${vertices.length / 3}, 索引=${indices.length}`);
-
-                    // 存儲區塊網格
+                    // 存儲區塊網格（包含透明度數據）
                     this.chunkMeshes.set(`${chunkX},${chunkZ}`, {
                         vertices: new Float32Array(vertices),
                         colors: new Float32Array(colors),
                         normals: new Float32Array(normals),
+                        alphas: new Float32Array(alphas),  // 添加透明度數據
                         indices: new Uint16Array(indices),
                         vertexCount: vertices.length / 3,
                         indexCount: indices.length
@@ -2604,6 +3283,11 @@
                 }
 
                 shouldRenderFace(x, y, z, currentBlockType) {
+                    // 添加世界邊界檢查
+                    if (Math.abs(x) > this.worldSize || Math.abs(z) > this.worldSize || y < -10 || y > 50) {
+                        return true; // 世界邊界外視為空氣，需要渲染面
+                    }
+
                     const neighborBlock = this.getBlock(x, y, z);
 
                     // 如果鄰居位置沒有方塊，則渲染這個面
@@ -2611,7 +3295,7 @@
                         return true;
                     }
 
-                    // 如果鄰居是透明方塊（如水），則渲染這個面
+                    // 如果鄰居是透明方塊（如水、玻璃），則渲染這個面
                     if (this.blockTypes[neighborBlock] && this.blockTypes[neighborBlock].transparent) {
                         return true;
                     }
@@ -2673,13 +3357,24 @@
                     this.gl.uniformMatrix4fv(this.uniforms.viewMatrix, false, this.viewMatrix);
                     this.gl.uniformMatrix4fv(this.uniforms.modelMatrix, false, this.modelMatrix);
 
-                    // 改進的光照設置
+                    // 設置光照
                     this.gl.uniform3f(this.uniforms.lightDirection, 0.3, 0.8, 0.5);
                     this.gl.uniform3f(this.uniforms.ambientLight, 0.6, 0.6, 0.6);
 
                     try {
+                        // 第一階段：渲染所有方塊（包括透明的）
+                        // 啟用混合模式
+                        this.gl.enable(this.gl.BLEND);
+                        this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA);
+
+                        // 對於透明方塊，禁用深度寫入但保持深度測試
+                        this.gl.depthMask(true); // 先渲染不透明部分
+
                         this.renderVisibleChunks();
+
+                        // 渲染其他玩家
                         this.renderOtherPlayers();
+
                     } catch (error) {
                         console.error('渲染過程中發生錯誤:', error);
                     }
@@ -2735,13 +3430,10 @@
                         return;
                     }
 
-                    // 確保深度測試狀態正確
                     if (!this.gl.getParameter(this.gl.DEPTH_TEST)) {
-                        console.warn('深度測試未啟用，重新啟用');
                         this.gl.enable(this.gl.DEPTH_TEST);
                     }
 
-                    // 檢查WebGL狀態
                     if (this.gl.isContextLost()) {
                         console.error('WebGL上下文丟失');
                         return;
@@ -2766,11 +3458,18 @@
                         this.gl.enableVertexAttribArray(this.attributes.normal);
                         this.gl.vertexAttribPointer(this.attributes.normal, 3, this.gl.FLOAT, false, 0, 0);
 
+                        // 綁定透明度數據
+                        if (mesh.alphas && this.attributes.alpha !== -1) {
+                            this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.buffers.alpha);
+                            this.gl.bufferData(this.gl.ARRAY_BUFFER, mesh.alphas, this.gl.STATIC_DRAW);
+                            this.gl.enableVertexAttribArray(this.attributes.alpha);
+                            this.gl.vertexAttribPointer(this.attributes.alpha, 1, this.gl.FLOAT, false, 0, 0);
+                        }
+
                         // 綁定索引數據
                         this.gl.bindBuffer(this.gl.ELEMENT_ARRAY_BUFFER, this.buffers.index);
                         this.gl.bufferData(this.gl.ELEMENT_ARRAY_BUFFER, mesh.indices, this.gl.STATIC_DRAW);
 
-                        // 檢查WebGL錯誤
                         const error = this.gl.getError();
                         if (error !== this.gl.NO_ERROR) {
                             console.error(`WebGL錯誤: ${error}`);
@@ -2780,7 +3479,6 @@
                         // 繪製
                         this.gl.drawElements(this.gl.TRIANGLES, mesh.indexCount, this.gl.UNSIGNED_SHORT, 0);
 
-                        // 更新統計
                         this.triangleCount += mesh.indexCount / 3;
                         this.vertexCount += mesh.vertexCount;
                         this.drawCalls++;
@@ -3242,31 +3940,60 @@
                         `${this.player.x.toFixed(1)}, ${this.player.y.toFixed(1)}, ${this.player.z.toFixed(1)}`;
                     document.getElementById('direction').textContent =
                         `${(this.player.angle * 180 / Math.PI).toFixed(0)}°`;
-                    document.getElementById('blockCount').textContent = this.world.size;
-                    document.getElementById('renderInfo').textContent =
-                        `WebGL ${this.flying ? '(飛行)' : '(生存)'} ${this.isMultiplayer ? '(多人)' : '(單人)'}`;
 
-                    // 更新生物群落
+                    const blockStats = this.getBlockStatistics();
+                    document.getElementById('blockCount').textContent =
+                        `${this.world.size} (${Object.keys(blockStats).length}種)`;
+
+                    // 顯示當前選中方塊的透明度信息
+                    const currentBlock = this.blockTypes[this.selectedBlock];
+                    const transparentInfo = currentBlock?.transparent ? ` α:${(currentBlock.alpha || 1).toFixed(1)}` : '';
+                    document.getElementById('renderInfo').textContent =
+                        `WebGL ${this.flying ? '(飛行)' : '(生存)'} ${this.isMultiplayer ? '(多人)' : '(單人)'}${transparentInfo}`;
+
                     const biome = this.getBiome(this.player.x, this.player.z);
                     document.getElementById('biome').textContent = biome;
 
-                    // 更新調試信息
                     document.getElementById('triangleCount').textContent = this.triangleCount;
                     document.getElementById('vertexCount').textContent = this.vertexCount;
                     document.getElementById('drawCalls').textContent = this.drawCalls;
 
-                    // 多人遊戲調試信息
                     if (this.isMultiplayer) {
                         const otherPlayerCount = this.otherPlayers.size;
-                        console.log(`其他玩家數量: ${otherPlayerCount}`);
+                        if (this.frameCount % 300 === 0) {
+                            console.log(`其他玩家數量: ${otherPlayerCount}`);
+                        }
                     }
                 }
 
+                // 獲取方塊統計
+                getBlockStatistics() {
+                    const stats = {};
+                    this.world.forEach((blockType) => {
+                        stats[blockType] = (stats[blockType] || 0) + 1;
+                    });
+                    return stats;
+                }
+
                 getBiome(x, z) {
-                    const height = this.getHighestBlock(x, z);
-                    if (height < -1) return '海洋';
-                    if (height > 5) return '山地';
-                    return '平原';
+                    // 使用與世界生成相同的邏輯
+                    const nx = x / this.worldSize;
+                    const nz = z / this.worldSize;
+
+                    const temperature = this.improvedNoise(nx * 2.5, nz * 2.5);
+                    const humidity = this.improvedNoise(nx * 3.1 + 100, nz * 3.1 + 100);
+
+                    if (temperature > 0.3 && humidity < -0.2) {
+                        return '沙漠';
+                    } else if (temperature < -0.3) {
+                        return '雪地';
+                    } else if (humidity > 0.4) {
+                        return '森林';
+                    } else if (temperature > 0.1 && humidity > 0.1) {
+                        return '叢林';
+                    } else {
+                        return '平原';
+                    }
                 }
 
                 updateMinimap() {
