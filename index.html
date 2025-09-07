@@ -5509,63 +5509,16 @@
             }
 
             checkCollision(x, y, z) {
-                // 玩家的碰撞箱（寬度0.6，高度1.8）
-                const playerWidth = 0.3; // 半寬
-                const playerHeight = 1.8;
-                const playerBottom = y;
-                const playerTop = y + playerHeight;
+                const blockX = Math.floor(x);
+                const blockY = Math.floor(y);
+                const blockZ = Math.floor(z);
 
-                // 檢查玩家碰撞箱內的所有方塊
-                const minX = Math.floor(x - playerWidth);
-                const maxX = Math.floor(x + playerWidth);
-                const minY = Math.floor(playerBottom);
-                const maxY = Math.floor(playerTop);
-                const minZ = Math.floor(z - playerWidth);
-                const maxZ = Math.floor(z + playerWidth);
-
-                for (let bx = minX; bx <= maxX; bx++) {
-                    for (let by = minY; by <= maxY; by++) {
-                        for (let bz = minZ; bz <= maxZ; bz++) {
-                            const block = this.getBlock(bx, by, bz);
-                            if (block) {
-                                // 檢查是否是固體方塊（非透明）
-                                const blockInfo = this.blockTypes[block];
-                                if (blockInfo && !blockInfo.transparent) {
-                                    // 精確檢查是否與方塊碰撞
-                                    if (this.isCollidingWithBlock(x, y, z, bx, by, bz, playerWidth, playerHeight)) {
-                                        return true;
-                                    }
-                                }
-                            }
-                        }
+                for (let dy = 0; dy < 2; dy++) {
+                    if (this.getBlock(blockX, blockY + dy, blockZ)) {
+                        return true;
                     }
                 }
-
                 return false;
-            }
-
-            // 新增：精確的方塊碰撞檢測
-            isCollidingWithBlock(px, py, pz, bx, by, bz, playerRadius, playerHeight) {
-                // 玩家碰撞箱
-                const playerMinX = px - playerRadius;
-                const playerMaxX = px + playerRadius;
-                const playerMinY = py;
-                const playerMaxY = py + playerHeight;
-                const playerMinZ = pz - playerRadius;
-                const playerMaxZ = pz + playerRadius;
-
-                // 方塊碰撞箱
-                const blockMinX = bx;
-                const blockMaxX = bx + 1;
-                const blockMinY = by;
-                const blockMaxY = by + 1;
-                const blockMinZ = bz;
-                const blockMaxZ = bz + 1;
-
-                // 檢查是否重疊
-                return !(playerMaxX <= blockMinX || playerMinX >= blockMaxX ||
-                    playerMaxY <= blockMinY || playerMinY >= blockMaxY ||
-                    playerMaxZ <= blockMinZ || playerMinZ >= blockMaxZ);
             }
 
             // 優化的區塊網格生成（真正的透明度支援）
@@ -6395,8 +6348,14 @@
             updatePlayer() {
                 if (!this.gameStarted || !this.worldGenerated || this.isPaused || this.chatSystem.isActive()) return;
 
+                // 重置相機位置，讓它在每次更新時重新計算
+                this.player.cameraX = null;
+                this.player.cameraY = null;
+                this.player.cameraZ = null;
+
+
                 // 修復：使用基於tick的移動速度
-                const baseSpeed = this.moveSpeed;
+                const baseSpeed = this.moveSpeed; // 已經是每tick的速度
                 const sprintMultiplier = this.keys['ControlLeft'] ? this.sprintMultiplier : 1;
                 const sneakMultiplier = this.keys['ShiftLeft'] && !this.flying ? this.sneakMultiplier : 1;
                 const speed = baseSpeed * sprintMultiplier * sneakMultiplier;
@@ -6431,25 +6390,9 @@
                 }
 
                 if (this.flying) {
-                    // 修復：飛行時的Y軸碰撞檢測
                     const flySpeed = speed * this.flySpeedMultiplier;
-                    let moveY = 0;
-
-                    if (this.keys['Space']) {
-                        moveY = flySpeed;
-                    }
-                    if (this.keys['ShiftLeft']) {
-                        moveY = -flySpeed;
-                    }
-
-                    // 檢查Y軸碰撞
-                    if (moveY !== 0) {
-                        const newY = this.player.y + moveY;
-                        if (!this.checkCollision(this.player.x, newY, this.player.z)) {
-                            this.player.y = newY;
-                        }
-                    }
-
+                    if (this.keys['Space']) this.player.y += flySpeed;
+                    if (this.keys['ShiftLeft']) this.player.y -= flySpeed;
                     this.player.velocity.y = 0;
                     this.player.onGround = false;
                 } else {
@@ -6479,7 +6422,7 @@
                 }
 
                 if (this.isMultiplayer && this.multiplayerManager.isConnected) {
-                    if (this.currentTick % 3 === 0) {
+                    if (this.currentTick % 3 === 0) { // 每3個tick發送一次更新
                         this.multiplayerManager.sendPlayerUpdate({
                             x: this.player.x,
                             y: this.player.y,
