@@ -3359,6 +3359,544 @@
             }
         }
 
+        // Minecraft Steve 角色模型和動畫系統
+        class MinecraftCharacter {
+            constructor(game, playerId, playerName, isLocalPlayer = false) {
+                this.game = game;
+                this.playerId = playerId;
+                this.playerName = playerName;
+                this.isLocalPlayer = isLocalPlayer;
+
+                // 角色位置和旋轉
+                this.position = { x: 0, y: 0, z: 0 };
+                this.rotation = { yaw: 0, pitch: 0 };
+
+                // 動畫狀態
+                this.animations = {
+                    walking: false,
+                    running: false,
+                    sneaking: false,
+                    mining: false,
+                    placing: false,
+                    armSwing: 0,
+                    legSwing: 0,
+                    miningProgress: 0,
+                    lastUpdateTime: Date.now()
+                };
+
+                // Steve模型部位尺寸（以方塊為單位）
+                this.modelParts = {
+                    head: { width: 0.5, height: 0.5, depth: 0.5 },
+                    body: { width: 0.5, height: 0.75, depth: 0.25 },
+                    armLeft: { width: 0.25, height: 0.75, depth: 0.25 },
+                    armRight: { width: 0.25, height: 0.75, depth: 0.25 },
+                    legLeft: { width: 0.25, height: 0.75, depth: 0.25 },
+                    legRight: { width: 0.25, height: 0.75, depth: 0.25 }
+                };
+
+                // 皮膚顏色（Steve默認顏色）
+                this.skinColors = {
+                    head: [0.8, 0.6, 0.5],      // 膚色
+                    body: [0.0, 0.6, 0.8],      // 藍色襯衫
+                    arms: [0.8, 0.6, 0.5],      // 膚色
+                    legs: [0.2, 0.2, 0.6]       // 深藍色褲子
+                };
+
+                // 創建名牌
+                if (!this.isLocalPlayer) {
+                    this.createNameTag();
+                }
+            }
+
+            // 創建名牌
+            createNameTag() {
+                const nameTagContainer = document.getElementById('playerNameTags');
+                if (!nameTagContainer) {
+                    console.warn('playerNameTags container not found');
+                    return;
+                }
+
+                this.nameTag = document.createElement('div');
+                this.nameTag.className = 'player-nametag';
+                this.nameTag.textContent = this.playerName;
+                this.nameTag.id = 'nametag-' + this.playerId;
+
+                // Minecraft風格的名牌樣式
+                this.nameTag.style.position = 'absolute';
+                this.nameTag.style.background = 'rgba(0, 0, 0, 0.5)';
+                this.nameTag.style.color = 'white';
+                this.nameTag.style.padding = '2px 6px';
+                this.nameTag.style.fontSize = '12px';
+                this.nameTag.style.borderRadius = '3px';
+                this.nameTag.style.pointerEvents = 'none';
+                this.nameTag.style.zIndex = '1000';
+                this.nameTag.style.whiteSpace = 'nowrap';
+                this.nameTag.style.transform = 'translateX(-50%)';
+                this.nameTag.style.textShadow = '1px 1px 1px rgba(0, 0, 0, 0.8)';
+
+                nameTagContainer.appendChild(this.nameTag);
+            }
+
+            // 更新動畫
+            updateAnimations(movementData) {
+                const currentTime = Date.now();
+                const deltaTime = (currentTime - this.animations.lastUpdateTime) / 1000;
+                this.animations.lastUpdateTime = currentTime;
+
+                // 檢測移動狀態
+                const isMoving = movementData.isMoving || false;
+                const isRunning = movementData.isRunning || false;
+                const isSneaking = movementData.isSneaking || false;
+                const isMining = movementData.isMining || false;
+                const isPlacing = movementData.isPlacing || false;
+
+                this.animations.walking = isMoving && !isRunning;
+                this.animations.running = isRunning;
+                this.animations.sneaking = isSneaking;
+                this.animations.mining = isMining;
+                this.animations.placing = isPlacing;
+
+                // 走路/跑步動畫
+                if (isMoving) {
+                    const speed = isRunning ? 12 : 8;
+                    this.animations.armSwing += deltaTime * speed;
+                    this.animations.legSwing += deltaTime * speed;
+                } else {
+                    // 平滑回到原位
+                    this.animations.armSwing *= 0.9;
+                    this.animations.legSwing *= 0.9;
+                }
+
+                // 挖掘動畫
+                if (isMining) {
+                    this.animations.miningProgress += deltaTime * 4;
+                } else {
+                    this.animations.miningProgress = 0;
+                }
+            }
+
+            // 渲染角色模型
+            render(gl, shaderProgram, buffers, attributes, playerData) {
+                // 更新位置和旋轉
+                this.position = {
+                    x: playerData.x || 0,
+                    y: playerData.y || 0,
+                    z: playerData.z || 0
+                };
+
+                this.rotation = {
+                    yaw: playerData.angle || 0,
+                    pitch: playerData.pitch || 0
+                };
+
+                // 潛行時降低高度
+                const sneakOffset = this.animations.sneaking ? -0.3 : 0;
+
+                // 渲染身體各部位
+                this.renderHead(gl, shaderProgram, buffers, attributes, sneakOffset);
+                this.renderBody(gl, shaderProgram, buffers, attributes, sneakOffset);
+                this.renderArms(gl, shaderProgram, buffers, attributes, sneakOffset);
+                this.renderLegs(gl, shaderProgram, buffers, attributes, sneakOffset);
+
+                // 更新名牌位置
+                if (!this.isLocalPlayer && this.nameTag) {
+                    this.updateNameTagPosition();
+                }
+            }
+
+            // 渲染頭部
+            renderHead(gl, shaderProgram, buffers, attributes, sneakOffset) {
+                const headY = this.position.y + 1.5 + sneakOffset;
+                const headRotation = this.animations.sneaking ? 0.3 : 0;
+
+                const vertices = this.createCubeVertices(
+                    this.position.x,
+                    headY,
+                    this.position.z,
+                    this.modelParts.head.width,
+                    this.modelParts.head.height,
+                    this.modelParts.head.depth
+                );
+
+                const rotatedVertices = this.rotateVertices(
+                    vertices,
+                    this.position.x,
+                    headY + this.modelParts.head.height / 2,
+                    this.position.z,
+                    this.rotation.yaw,
+                    this.rotation.pitch + headRotation
+                );
+
+                this.renderCube(gl, shaderProgram, buffers, attributes, rotatedVertices, this.skinColors.head);
+            }
+
+            // 渲染身體
+            renderBody(gl, shaderProgram, buffers, attributes, sneakOffset) {
+                const bodyY = this.position.y + 0.75 + sneakOffset;
+                const bodyRotation = this.animations.sneaking ? 0.3 : 0;
+
+                const vertices = this.createCubeVertices(
+                    this.position.x,
+                    bodyY,
+                    this.position.z,
+                    this.modelParts.body.width,
+                    this.modelParts.body.height,
+                    this.modelParts.body.depth
+                );
+
+                const rotatedVertices = this.rotateVertices(
+                    vertices,
+                    this.position.x,
+                    bodyY + this.modelParts.body.height / 2,
+                    this.position.z,
+                    this.rotation.yaw,
+                    bodyRotation
+                );
+
+                this.renderCube(gl, shaderProgram, buffers, attributes, rotatedVertices, this.skinColors.body);
+            }
+
+            // 渲染手臂
+            renderArms(gl, shaderProgram, buffers, attributes, sneakOffset) {
+                const armY = this.position.y + 1.125 + sneakOffset;
+
+                // 左臂
+                let leftArmSwing = Math.sin(this.animations.armSwing) * 0.5;
+                if (this.animations.placing) {
+                    leftArmSwing = -1.2;
+                }
+
+                const leftArmVertices = this.createCubeVertices(
+                    this.position.x - 0.375,
+                    armY,
+                    this.position.z,
+                    this.modelParts.armLeft.width,
+                    this.modelParts.armLeft.height,
+                    this.modelParts.armLeft.depth
+                );
+
+                const rotatedLeftArm = this.rotateVerticesAroundPoint(
+                    leftArmVertices,
+                    this.position.x - 0.375,
+                    armY + this.modelParts.armLeft.height,
+                    this.position.z,
+                    leftArmSwing,
+                    0,
+                    0
+                );
+
+                this.renderCube(gl, shaderProgram, buffers, attributes, rotatedLeftArm, this.skinColors.arms);
+
+                // 右臂
+                let rightArmSwing = -Math.sin(this.animations.armSwing) * 0.5;
+                if (this.animations.mining) {
+                    rightArmSwing = -1.5 + Math.sin(this.animations.miningProgress * 4) * 0.3;
+                }
+
+                const rightArmVertices = this.createCubeVertices(
+                    this.position.x + 0.375,
+                    armY,
+                    this.position.z,
+                    this.modelParts.armRight.width,
+                    this.modelParts.armRight.height,
+                    this.modelParts.armRight.depth
+                );
+
+                const rotatedRightArm = this.rotateVerticesAroundPoint(
+                    rightArmVertices,
+                    this.position.x + 0.375,
+                    armY + this.modelParts.armRight.height,
+                    this.position.z,
+                    rightArmSwing,
+                    0,
+                    0
+                );
+
+                this.renderCube(gl, shaderProgram, buffers, attributes, rotatedRightArm, this.skinColors.arms);
+            }
+
+            // 渲染腿部
+            renderLegs(gl, shaderProgram, buffers, attributes, sneakOffset) {
+                const legY = this.position.y + sneakOffset;
+
+                // 左腿
+                const leftLegSwing = Math.sin(this.animations.legSwing) * 0.5;
+                const leftLegVertices = this.createCubeVertices(
+                    this.position.x - 0.125,
+                    legY,
+                    this.position.z,
+                    this.modelParts.legLeft.width,
+                    this.modelParts.legLeft.height,
+                    this.modelParts.legLeft.depth
+                );
+
+                const rotatedLeftLeg = this.rotateVerticesAroundPoint(
+                    leftLegVertices,
+                    this.position.x - 0.125,
+                    legY + this.modelParts.legLeft.height,
+                    this.position.z,
+                    leftLegSwing,
+                    0,
+                    0
+                );
+
+                this.renderCube(gl, shaderProgram, buffers, attributes, rotatedLeftLeg, this.skinColors.legs);
+
+                // 右腿
+                const rightLegSwing = -Math.sin(this.animations.legSwing) * 0.5;
+                const rightLegVertices = this.createCubeVertices(
+                    this.position.x + 0.125,
+                    legY,
+                    this.position.z,
+                    this.modelParts.legRight.width,
+                    this.modelParts.legRight.height,
+                    this.modelParts.legRight.depth
+                );
+
+                const rotatedRightLeg = this.rotateVerticesAroundPoint(
+                    rightLegVertices,
+                    this.position.x + 0.125,
+                    legY + this.modelParts.legRight.height,
+                    this.position.z,
+                    rightLegSwing,
+                    0,
+                    0
+                );
+
+                this.renderCube(gl, shaderProgram, buffers, attributes, rotatedRightLeg, this.skinColors.legs);
+            }
+
+            // 創建立方體頂點
+            createCubeVertices(x, y, z, width, height, depth) {
+                const hw = width / 2;
+                const hd = depth / 2;
+
+                const vertices = [];
+
+                // 前面
+                vertices.push(x - hw, y, z + hd);
+                vertices.push(x + hw, y, z + hd);
+                vertices.push(x + hw, y + height, z + hd);
+                vertices.push(x - hw, y + height, z + hd);
+
+                // 後面
+                vertices.push(x + hw, y, z - hd);
+                vertices.push(x - hw, y, z - hd);
+                vertices.push(x - hw, y + height, z - hd);
+                vertices.push(x + hw, y + height, z - hd);
+
+                // 左面
+                vertices.push(x - hw, y, z - hd);
+                vertices.push(x - hw, y, z + hd);
+                vertices.push(x - hw, y + height, z + hd);
+                vertices.push(x - hw, y + height, z - hd);
+
+                // 右面
+                vertices.push(x + hw, y, z + hd);
+                vertices.push(x + hw, y, z - hd);
+                vertices.push(x + hw, y + height, z - hd);
+                vertices.push(x + hw, y + height, z + hd);
+
+                // 上面
+                vertices.push(x - hw, y + height, z + hd);
+                vertices.push(x + hw, y + height, z + hd);
+                vertices.push(x + hw, y + height, z - hd);
+                vertices.push(x - hw, y + height, z - hd);
+
+                // 下面
+                vertices.push(x - hw, y, z - hd);
+                vertices.push(x + hw, y, z - hd);
+                vertices.push(x + hw, y, z + hd);
+                vertices.push(x - hw, y, z + hd);
+
+                return new Float32Array(vertices);
+            }
+
+            // 旋轉頂點
+            rotateVertices(vertices, centerX, centerY, centerZ, yaw, pitch) {
+                const rotated = new Float32Array(vertices.length);
+
+                for (let i = 0; i < vertices.length; i += 3) {
+                    let x = vertices[i] - centerX;
+                    let y = vertices[i + 1] - centerY;
+                    let z = vertices[i + 2] - centerZ;
+
+                    // 應用pitch旋轉
+                    const cosPitch = Math.cos(pitch);
+                    const sinPitch = Math.sin(pitch);
+                    const tempY = y;
+                    y = tempY * cosPitch - z * sinPitch;
+                    z = tempY * sinPitch + z * cosPitch;
+
+                    // 應用yaw旋轉
+                    const cosYaw = Math.cos(yaw);
+                    const sinYaw = Math.sin(yaw);
+                    const tempX = x;
+                    x = tempX * cosYaw - z * sinYaw;
+                    z = tempX * sinYaw + z * cosYaw;
+
+                    rotated[i] = x + centerX;
+                    rotated[i + 1] = y + centerY;
+                    rotated[i + 2] = z + centerZ;
+                }
+
+                return rotated;
+            }
+
+            // 繞指定點旋轉頂點（用於手臂和腿部動畫）
+            rotateVerticesAroundPoint(vertices, pivotX, pivotY, pivotZ, rotX, rotY, rotZ) {
+                const rotated = new Float32Array(vertices.length);
+
+                for (let i = 0; i < vertices.length; i += 3) {
+                    let x = vertices[i] - pivotX;
+                    let y = vertices[i + 1] - pivotY;
+                    let z = vertices[i + 2] - pivotZ;
+
+                    // X軸旋轉
+                    if (rotX !== 0) {
+                        const cosX = Math.cos(rotX);
+                        const sinX = Math.sin(rotX);
+                        const tempY = y;
+                        y = tempY * cosX - z * sinX;
+                        z = tempY * sinX + z * cosX;
+                    }
+
+                    // Y軸旋轉
+                    if (rotY !== 0) {
+                        const cosY = Math.cos(rotY);
+                        const sinY = Math.sin(rotY);
+                        const tempX = x;
+                        x = tempX * cosY + z * sinY;
+                        z = -tempX * sinY + z * cosY;
+                    }
+
+                    // Z軸旋轉
+                    if (rotZ !== 0) {
+                        const cosZ = Math.cos(rotZ);
+                        const sinZ = Math.sin(rotZ);
+                        const tempX = x;
+                        x = tempX * cosZ - y * sinZ;
+                        y = tempX * sinZ + y * cosZ;
+                    }
+
+                    rotated[i] = x + pivotX;
+                    rotated[i + 1] = y + pivotY;
+                    rotated[i + 2] = z + pivotZ;
+                }
+
+                return rotated;
+            }
+
+            // 渲染立方體
+            renderCube(gl, shaderProgram, buffers, attributes, vertices, color) {
+                // 創建索引
+                const indices = new Uint16Array([
+                    0, 1, 2, 0, 2, 3,    // 前面
+                    4, 5, 6, 4, 6, 7,    // 後面
+                    8, 9, 10, 8, 10, 11,  // 左面
+                    12, 13, 14, 12, 14, 15, // 右面
+                    16, 17, 18, 16, 18, 19, // 上面
+                    20, 21, 22, 20, 22, 23  // 下面
+                ]);
+
+                // 創建顏色數組
+                const colors = new Float32Array(72);
+                for (let i = 0; i < 24; i++) {
+                    colors[i * 3] = color[0];
+                    colors[i * 3 + 1] = color[1];
+                    colors[i * 3 + 2] = color[2];
+                }
+
+                // 創建法線數組
+                const normals = new Float32Array([
+                    // 前面
+                    0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1,
+                    // 後面
+                    0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1,
+                    // 左面
+                    -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0,
+                    // 右面
+                    1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0,
+                    // 上面
+                    0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0,
+                    // 下面
+                    0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0
+                ]);
+
+                // 創建透明度數組
+                const alphas = new Float32Array(24);
+                for (let i = 0; i < 24; i++) {
+                    alphas[i] = 1.0;
+                }
+
+                // 綁定並傳送數據到GPU
+                gl.bindBuffer(gl.ARRAY_BUFFER, buffers.position);
+                gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.DYNAMIC_DRAW);
+                gl.enableVertexAttribArray(attributes.position);
+                gl.vertexAttribPointer(attributes.position, 3, gl.FLOAT, false, 0, 0);
+
+                gl.bindBuffer(gl.ARRAY_BUFFER, buffers.color);
+                gl.bufferData(gl.ARRAY_BUFFER, colors, gl.DYNAMIC_DRAW);
+                gl.enableVertexAttribArray(attributes.color);
+                gl.vertexAttribPointer(attributes.color, 3, gl.FLOAT, false, 0, 0);
+
+                gl.bindBuffer(gl.ARRAY_BUFFER, buffers.normal);
+                gl.bufferData(gl.ARRAY_BUFFER, normals, gl.DYNAMIC_DRAW);
+                gl.enableVertexAttribArray(attributes.normal);
+                gl.vertexAttribPointer(attributes.normal, 3, gl.FLOAT, false, 0, 0);
+
+                if (attributes.alpha !== -1) {
+                    gl.bindBuffer(gl.ARRAY_BUFFER, buffers.alpha);
+                    gl.bufferData(gl.ARRAY_BUFFER, alphas, gl.DYNAMIC_DRAW);
+                    gl.enableVertexAttribArray(attributes.alpha);
+                    gl.vertexAttribPointer(attributes.alpha, 1, gl.FLOAT, false, 0, 0);
+                }
+
+                gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, buffers.index);
+                gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indices, gl.DYNAMIC_DRAW);
+
+                gl.drawElements(gl.TRIANGLES, indices.length, gl.UNSIGNED_SHORT, 0);
+            }
+
+            // 更新名牌位置
+            updateNameTagPosition() {
+                if (!this.nameTag || !this.game) return;
+
+                const screenPos = this.game.worldToScreen(
+                    this.position.x,
+                    this.position.y + 2.2, // 頭頂上方
+                    this.position.z
+                );
+
+                if (screenPos && screenPos.z > 0 && screenPos.z < 1) {
+                    this.nameTag.style.left = screenPos.x + 'px';
+                    this.nameTag.style.top = screenPos.y + 'px';
+                    this.nameTag.style.display = 'block';
+
+                    // 根據距離調整透明度
+                    const distance = Math.sqrt(
+                        Math.pow(this.position.x - this.game.player.x, 2) +
+                        Math.pow(this.position.y - this.game.player.y, 2) +
+                        Math.pow(this.position.z - this.game.player.z, 2)
+                    );
+
+                    const maxDistance = 50;
+                    const minOpacity = 0.3;
+                    const opacity = Math.max(minOpacity, Math.min(1.0, 1.0 - (distance / maxDistance)));
+                    this.nameTag.style.opacity = opacity;
+                } else {
+                    this.nameTag.style.display = 'none';
+                }
+            }
+
+            // 清理資源
+            destroy() {
+                if (this.nameTag && this.nameTag.parentNode) {
+                    this.nameTag.parentNode.removeChild(this.nameTag);
+                }
+            }
+        } // MinecraftCharacter 類結束
+
         // 修復：WebGL Minecraft 主遊戲類別 - 實現真正的20 TPS系統
         class WebGLMinecraft {
             constructor() {
@@ -4971,16 +5509,63 @@
             }
 
             checkCollision(x, y, z) {
-                const blockX = Math.floor(x);
-                const blockY = Math.floor(y);
-                const blockZ = Math.floor(z);
+                // 玩家的碰撞箱（寬度0.6，高度1.8）
+                const playerWidth = 0.3; // 半寬
+                const playerHeight = 1.8;
+                const playerBottom = y;
+                const playerTop = y + playerHeight;
 
-                for (let dy = 0; dy < 2; dy++) {
-                    if (this.getBlock(blockX, blockY + dy, blockZ)) {
-                        return true;
+                // 檢查玩家碰撞箱內的所有方塊
+                const minX = Math.floor(x - playerWidth);
+                const maxX = Math.floor(x + playerWidth);
+                const minY = Math.floor(playerBottom);
+                const maxY = Math.floor(playerTop);
+                const minZ = Math.floor(z - playerWidth);
+                const maxZ = Math.floor(z + playerWidth);
+
+                for (let bx = minX; bx <= maxX; bx++) {
+                    for (let by = minY; by <= maxY; by++) {
+                        for (let bz = minZ; bz <= maxZ; bz++) {
+                            const block = this.getBlock(bx, by, bz);
+                            if (block) {
+                                // 檢查是否是固體方塊（非透明）
+                                const blockInfo = this.blockTypes[block];
+                                if (blockInfo && !blockInfo.transparent) {
+                                    // 精確檢查是否與方塊碰撞
+                                    if (this.isCollidingWithBlock(x, y, z, bx, by, bz, playerWidth, playerHeight)) {
+                                        return true;
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
+
                 return false;
+            }
+
+            // 新增：精確的方塊碰撞檢測
+            isCollidingWithBlock(px, py, pz, bx, by, bz, playerRadius, playerHeight) {
+                // 玩家碰撞箱
+                const playerMinX = px - playerRadius;
+                const playerMaxX = px + playerRadius;
+                const playerMinY = py;
+                const playerMaxY = py + playerHeight;
+                const playerMinZ = pz - playerRadius;
+                const playerMaxZ = pz + playerRadius;
+
+                // 方塊碰撞箱
+                const blockMinX = bx;
+                const blockMaxX = bx + 1;
+                const blockMinY = by;
+                const blockMaxY = by + 1;
+                const blockMinZ = bz;
+                const blockMaxZ = bz + 1;
+
+                // 檢查是否重疊
+                return !(playerMaxX <= blockMinX || playerMinX >= blockMaxX ||
+                    playerMaxY <= blockMinY || playerMinY >= blockMaxY ||
+                    playerMaxZ <= blockMinZ || playerMinZ >= blockMaxZ);
             }
 
             // 優化的區塊網格生成（真正的透明度支援）
@@ -5810,14 +6395,8 @@
             updatePlayer() {
                 if (!this.gameStarted || !this.worldGenerated || this.isPaused || this.chatSystem.isActive()) return;
 
-                // 重置相機位置，讓它在每次更新時重新計算
-                this.player.cameraX = null;
-                this.player.cameraY = null;
-                this.player.cameraZ = null;
-
-
                 // 修復：使用基於tick的移動速度
-                const baseSpeed = this.moveSpeed; // 已經是每tick的速度
+                const baseSpeed = this.moveSpeed;
                 const sprintMultiplier = this.keys['ControlLeft'] ? this.sprintMultiplier : 1;
                 const sneakMultiplier = this.keys['ShiftLeft'] && !this.flying ? this.sneakMultiplier : 1;
                 const speed = baseSpeed * sprintMultiplier * sneakMultiplier;
@@ -5852,9 +6431,25 @@
                 }
 
                 if (this.flying) {
+                    // 修復：飛行時的Y軸碰撞檢測
                     const flySpeed = speed * this.flySpeedMultiplier;
-                    if (this.keys['Space']) this.player.y += flySpeed;
-                    if (this.keys['ShiftLeft']) this.player.y -= flySpeed;
+                    let moveY = 0;
+
+                    if (this.keys['Space']) {
+                        moveY = flySpeed;
+                    }
+                    if (this.keys['ShiftLeft']) {
+                        moveY = -flySpeed;
+                    }
+
+                    // 檢查Y軸碰撞
+                    if (moveY !== 0) {
+                        const newY = this.player.y + moveY;
+                        if (!this.checkCollision(this.player.x, newY, this.player.z)) {
+                            this.player.y = newY;
+                        }
+                    }
+
                     this.player.velocity.y = 0;
                     this.player.onGround = false;
                 } else {
@@ -5884,7 +6479,7 @@
                 }
 
                 if (this.isMultiplayer && this.multiplayerManager.isConnected) {
-                    if (this.currentTick % 3 === 0) { // 每3個tick發送一次更新
+                    if (this.currentTick % 3 === 0) {
                         this.multiplayerManager.sendPlayerUpdate({
                             x: this.player.x,
                             y: this.player.y,
