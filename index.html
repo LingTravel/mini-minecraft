@@ -859,6 +859,7 @@
             pointer-events: auto;
             opacity: 0.8;
             transition: opacity 0.3s ease;
+            z-index: 92;
         }
 
         .joystick-knob {
@@ -882,25 +883,30 @@
             right: 40px;
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 12px;
+            gap: 15px;
             pointer-events: auto;
+            z-index: 92;
         }
 
         .mobile-btn {
-            width: 60px;
-            height: 60px;
+            width: 70px;
+            /* 更大的按鈕 */
+            height: 70px;
             background: var(--bg-glass);
             border: 2px solid var(--border);
-            border-radius: 12px;
+            border-radius: 14px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 20px;
+            font-size: 24px;
             color: var(--text-primary);
             cursor: pointer;
             transition: all 0.3s ease;
             backdrop-filter: blur(10px);
             user-select: none;
+            z-index: 93;
+            touch-action: manipulation;
+            /* 防止瀏覽器處理觸摸事件 */
         }
 
         .mobile-btn:active {
@@ -912,37 +918,47 @@
         /* 額外的移動端按鈕 */
         .mobile-extra-buttons {
             position: absolute;
-            bottom: 200px;
+            bottom: 220px;
             right: 40px;
             display: flex;
             flex-direction: column;
-            gap: 12px;
+            gap: 15px;
             pointer-events: auto;
+            z-index: 92;
         }
 
         .mobile-chat-btn {
             position: absolute;
             top: 80px;
             right: 20px;
-            width: 50px;
-            height: 50px;
+            width: 60px;
+            height: 60px;
             background: var(--bg-glass);
             border: 2px solid var(--border);
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 18px;
+            font-size: 20px;
             color: var(--text-primary);
             cursor: pointer;
             pointer-events: auto;
             backdrop-filter: blur(10px);
             transition: all 0.3s ease;
+            z-index: 92;
+            touch-action: manipulation;
         }
 
-        .mobile-chat-btn:active {
+        .mobile-btn.active {
+            background: var(--primary);
             transform: scale(0.95);
-            background: var(--bg-glass-hover);
+            box-shadow: 0 0 15px rgba(255, 107, 53, 0.5);
+        }
+
+        .mobile-chat-btn.active {
+            background: var(--primary);
+            transform: scale(0.95);
+            box-shadow: 0 0 15px rgba(255, 107, 53, 0.5);
         }
 
         /* 方塊切換通知 */
@@ -2231,14 +2247,43 @@
                 this.joystickRadius = 60;
                 this.moveVector = { x: 0, y: 0 };
 
+                // 確保控制初始化
                 if (this.isMobile) {
                     this.setupMobileControls();
+                } else {
+                    // 隱藏移動控制
+                    const mobileControls = document.getElementById('mobileControls');
+                    if (mobileControls) {
+                        mobileControls.style.display = 'none';
+                    }
                 }
+
+                // 監聽窗口大小變化，重新檢測移動設備
+                window.addEventListener('resize', () => {
+                    const wasMobile = this.isMobile;
+                    this.isMobile = this.detectMobile();
+
+                    if (this.isMobile !== wasMobile) {
+                        if (this.isMobile) {
+                            this.setupMobileControls();
+                        } else {
+                            const mobileControls = document.getElementById('mobileControls');
+                            if (mobileControls) {
+                                mobileControls.style.display = 'none';
+                            }
+                        }
+                    }
+                });
             }
 
             detectMobile() {
-                return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+                const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
                     (navigator.maxTouchPoints && navigator.maxTouchPoints > 2);
+
+                // 強制顯示移動控制（測試用）
+                // return true;
+
+                return isMobile;
             }
 
             setupMobileControls() {
@@ -2311,54 +2356,105 @@
                 const jumpBtn = document.getElementById('jumpBtn');
                 const breakBtn = document.getElementById('breakBtn');
                 const placeBtn = document.getElementById('placeBtn');
-                const sneakBtn = document.getElementById('sneakBtn'); // 修復：添加潛行按鈕
+                const sneakBtn = document.getElementById('sneakBtn');
                 const flyBtn = document.getElementById('flyBtn');
 
-                jumpBtn.addEventListener('touchstart', (e) => {
-                    e.preventDefault();
-                    this.game.keys['Space'] = true;
-                });
-                jumpBtn.addEventListener('touchend', (e) => {
-                    e.preventDefault();
-                    this.game.keys['Space'] = false;
+                // 修復：使用更強健的事件處理
+                this.setupButtonEvents(jumpBtn, {
+                    start: () => { this.game.keys['Space'] = true; },
+                    end: () => { this.game.keys['Space'] = false; }
                 });
 
-                // 修復：添加潛行按鈕功能
-                sneakBtn.addEventListener('touchstart', (e) => {
-                    e.preventDefault();
-                    this.game.keys['ShiftLeft'] = true;
-                    sneakBtn.style.background = 'var(--primary)';
-                });
-                sneakBtn.addEventListener('touchend', (e) => {
-                    e.preventDefault();
-                    this.game.keys['ShiftLeft'] = false;
-                    sneakBtn.style.background = 'var(--bg-glass)';
-                });
-
-                breakBtn.addEventListener('touchstart', (e) => {
-                    e.preventDefault();
-                    this.handleBlockBreak();
+                this.setupButtonEvents(sneakBtn, {
+                    start: () => {
+                        this.game.keys['ShiftLeft'] = true;
+                        sneakBtn.style.background = 'var(--primary)';
+                    },
+                    end: () => {
+                        this.game.keys['ShiftLeft'] = false;
+                        sneakBtn.style.background = 'var(--bg-glass)';
+                    }
                 });
 
-                placeBtn.addEventListener('touchstart', (e) => {
-                    e.preventDefault();
-                    this.handleBlockPlace();
+                this.setupButtonEvents(breakBtn, {
+                    start: () => { this.handleBlockBreak(); }
                 });
 
-                flyBtn.addEventListener('touchstart', (e) => {
-                    e.preventDefault();
-                    this.game.flying = !this.game.flying;
-                    const status = this.game.flying ? '開啟' : '關閉';
-                    this.game.chatSystem.addMessage(`飛行模式：${status}`, 'system');
+                this.setupButtonEvents(placeBtn, {
+                    start: () => { this.handleBlockPlace(); }
                 });
+
+                this.setupButtonEvents(flyBtn, {
+                    start: () => {
+                        this.game.flying = !this.game.flying;
+                        const status = this.game.flying ? '開啟' : '關閉';
+                        this.game.chatSystem.addMessage(`飛行模式：${status}`, 'system');
+                        flyBtn.style.background = this.game.flying ? 'var(--primary)' : 'var(--bg-glass)';
+                    }
+                });
+            }
+
+            // 新增：統一的按鈕事件處理
+            setupButtonEvents(button, handlers) {
+                if (!button) return;
+
+                // 觸摸事件
+                button.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    if (handlers.start) handlers.start();
+                    button.classList.add('active');
+                });
+
+                if (handlers.end) {
+                    button.addEventListener('touchend', (e) => {
+                        e.preventDefault();
+                        handlers.end();
+                        button.classList.remove('active');
+                    });
+
+                    button.addEventListener('touchcancel', (e) => {
+                        e.preventDefault();
+                        handlers.end();
+                        button.classList.remove('active');
+                    });
+                }
+
+                // 滑鼠事件（開發測試用）
+                button.addEventListener('mousedown', (e) => {
+                    e.preventDefault();
+                    if (handlers.start) handlers.start();
+                    button.classList.add('active');
+                });
+
+                if (handlers.end) {
+                    button.addEventListener('mouseup', (e) => {
+                        e.preventDefault();
+                        handlers.end();
+                        button.classList.remove('active');
+                    });
+
+                    button.addEventListener('mouseleave', (e) => {
+                        if (button.classList.contains('active')) {
+                            e.preventDefault();
+                            handlers.end();
+                            button.classList.remove('active');
+                        }
+                    });
+                }
             }
 
             setupChatButton() {
                 const chatBtn = document.getElementById('mobileChatBtn');
-                chatBtn.addEventListener('touchstart', (e) => {
-                    e.preventDefault();
-                    if (this.game.isMultiplayer) {
-                        this.game.chatSystem.activateInput();
+
+                this.setupButtonEvents(chatBtn, {
+                    start: () => {
+                        if (this.game.gameStarted) {
+                            this.game.chatSystem.activateInput();
+                            chatBtn.classList.add('active');
+                            setTimeout(() => {
+                                chatBtn.classList.remove('active');
+                            }, 300);
+                        }
                     }
                 });
             }
@@ -2846,11 +2942,16 @@
                 this.flySpeedMultiplier = 2.0;
 
                 // 玩家 - 使用真實Minecraft數值
+                // 在初始化玩家時添加相機位置屬性
                 this.player = {
                     x: 0, y: 10, z: 0,
                     angle: 0, pitch: 0,
                     velocity: { x: 0, y: 0, z: 0 },
-                    onGround: false
+                    onGround: false,
+                    // 新增：相機位置屬性
+                    cameraX: null,
+                    cameraY: null,
+                    cameraZ: null
                 };
 
                 // 其他玩家渲染數據
@@ -3127,10 +3228,16 @@
             }
 
             // 更新投影矩陣（支援FOV設定）
+            // 更新投影矩陣（支援FOV設定和近平面調整）
             updateProjectionMatrix() {
                 const aspect = this.canvas.width / this.canvas.height;
                 const fov = (this.gameSettings.get('fov') * Math.PI) / 180;
-                this.perspective(this.projectionMatrix, fov, aspect, 0.1, 1000.0);
+
+                // 修復：調整近平面距離，防止近距離渲染問題
+                const nearPlane = 0.05; // 更小的近平面距離
+                const farPlane = 1000.0;
+
+                this.perspective(this.projectionMatrix, fov, aspect, nearPlane, farPlane);
             }
 
             // 簡化的4x4矩陣創建
@@ -4637,15 +4744,99 @@
             }
 
             updateViewMatrix() {
-                const eye = [this.player.x, this.player.y + 1.6, this.player.z];
-                const target = [
-                    this.player.x + Math.cos(this.player.angle) * Math.cos(this.player.pitch),
-                    this.player.y + 1.6 + Math.sin(this.player.pitch),
-                    this.player.z + Math.sin(this.player.angle) * Math.cos(this.player.pitch)
-                ];
-                const up = [0, 1, 0];
+                // 玩家眼睛位置（相機位置）
+                const eyeHeight = 1.6; // Minecraft中玩家眼睛高度
+                let eyeX = this.player.x;
+                let eyeY = this.player.y + eyeHeight;
+                let eyeZ = this.player.z;
 
+                // 視線方向
+                const dirX = Math.cos(this.player.angle) * Math.cos(this.player.pitch);
+                const dirY = Math.sin(this.player.pitch);
+                const dirZ = Math.sin(this.player.angle) * Math.cos(this.player.pitch);
+
+                // 修復：相機碰撞檢測
+                this.adjustCameraForCollision(eyeX, eyeY, eyeZ, dirX, dirY, dirZ);
+
+                // 更新後的眼睛位置
+                const eye = [this.player.cameraX || eyeX, this.player.cameraY || eyeY, this.player.cameraZ || eyeZ];
+
+                // 視線目標點
+                const target = [
+                    eye[0] + dirX,
+                    eye[1] + dirY,
+                    eye[2] + dirZ
+                ];
+
+                const up = [0, 1, 0];
                 this.lookAt(this.viewMatrix, eye, target, up);
+            }
+
+            // 新增：相機碰撞檢測和調整
+            adjustCameraForCollision(eyeX, eyeY, eyeZ, dirX, dirY, dirZ) {
+                // 最小相機距離（從玩家中心到方塊表面的最小距離）
+                const minDistance = 0.15;
+
+                // 檢查相機周圍的方塊
+                for (let dx = -1; dx <= 1; dx++) {
+                    for (let dy = -1; dy <= 1; dy++) {
+                        for (let dz = -1; dz <= 1; dz++) {
+                            const blockX = Math.floor(eyeX + dx);
+                            const blockY = Math.floor(eyeY + dy);
+                            const blockZ = Math.floor(eyeZ + dz);
+
+                            // 如果方塊存在且不透明
+                            const blockType = this.getBlock(blockX, blockY, blockZ);
+                            if (blockType) {
+                                const blockInfo = this.blockTypes[blockType];
+                                if (blockInfo && !blockInfo.transparent) {
+                                    // 計算相機到方塊表面的距離
+                                    const distances = this.distanceToBlockSurfaces(eyeX, eyeY, eyeZ, blockX, blockY, blockZ);
+
+                                    // 如果距離小於最小距離，調整相機位置
+                                    for (const face in distances) {
+                                        if (distances[face] < minDistance) {
+                                            // 根據面的方向調整相機位置
+                                            switch (face) {
+                                                case 'px': // +X面
+                                                    this.player.cameraX = blockX + 1 + minDistance;
+                                                    break;
+                                                case 'nx': // -X面
+                                                    this.player.cameraX = blockX - minDistance;
+                                                    break;
+                                                case 'py': // +Y面
+                                                    this.player.cameraY = blockY + 1 + minDistance;
+                                                    break;
+                                                case 'ny': // -Y面
+                                                    this.player.cameraY = blockY - minDistance;
+                                                    break;
+                                                case 'pz': // +Z面
+                                                    this.player.cameraZ = blockZ + 1 + minDistance;
+                                                    break;
+                                                case 'nz': // -Z面
+                                                    this.player.cameraZ = blockZ - minDistance;
+                                                    break;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 計算相機到方塊各表面的距離
+            distanceToBlockSurfaces(eyeX, eyeY, eyeZ, blockX, blockY, blockZ) {
+                // 計算相機到方塊六個面的距離
+                return {
+                    'px': Math.abs(eyeX - (blockX + 1)), // +X面
+                    'nx': Math.abs(eyeX - blockX),       // -X面
+                    'py': Math.abs(eyeY - (blockY + 1)), // +Y面
+                    'ny': Math.abs(eyeY - blockY),       // -Y面
+                    'pz': Math.abs(eyeZ - (blockZ + 1)), // +Z面
+                    'nz': Math.abs(eyeZ - blockZ)        // -Z面
+                };
             }
 
             // 優化的渲染系統（真正的透明度和加粗線框）
@@ -5107,6 +5298,12 @@
             // 修復：實現真正的Minecraft tick系統的玩家更新
             updatePlayer() {
                 if (!this.gameStarted || !this.worldGenerated || this.isPaused || this.chatSystem.isActive()) return;
+
+                // 重置相機位置，讓它在每次更新時重新計算
+                this.player.cameraX = null;
+                this.player.cameraY = null;
+                this.player.cameraZ = null;
+
 
                 // 修復：使用基於tick的移動速度
                 const baseSpeed = this.moveSpeed; // 已經是每tick的速度
