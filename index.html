@@ -834,7 +834,7 @@
             margin-bottom: 0;
         }
 
-        /* 修復：移動端控制 - 完整重寫 */
+        /* 移動端控制 - 統一的樣式 */
         #mobileControls {
             position: fixed;
             top: 0;
@@ -846,19 +846,20 @@
             display: none;
         }
 
-        /* 移動搖桿 */
+        /* 左下角搖桿 */
         .mobile-joystick {
             position: absolute;
-            bottom: 120px;
-            left: 60px;
+            bottom: 60px;
+            left: 40px;
             width: 120px;
             height: 120px;
-            background: rgba(255, 255, 255, 0.1);
-            border: 2px solid rgba(255, 255, 255, 0.3);
+            background: rgba(0, 0, 0, 0.3);
+            border: 2px solid rgba(255, 255, 255, 0.2);
             border-radius: 50%;
             pointer-events: auto;
             opacity: 0.8;
             transition: opacity 0.3s ease;
+            backdrop-filter: blur(5px);
         }
 
         .joystick-knob {
@@ -867,94 +868,198 @@
             left: 50%;
             width: 40px;
             height: 40px;
-            background: var(--primary);
-            border: 2px solid white;
+            background: rgba(255, 107, 53, 0.8);
+            border: 2px solid rgba(255, 255, 255, 0.8);
             border-radius: 50%;
             transform: translate(-50%, -50%);
             transition: all 0.1s ease;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
         }
 
-        /* 右側操作按鈕 */
-        .mobile-action-buttons {
+        /* 右側統一的按鈕容器 */
+        .mobile-buttons-container {
             position: absolute;
-            bottom: 120px;
+            bottom: 60px;
             right: 20px;
             display: flex;
             flex-direction: column;
-            /* 改為垂直排列 */
-            gap: 10px;
+            gap: 8px;
             pointer-events: auto;
             z-index: 92;
         }
 
+        /* 統一的按鈕樣式 */
         .mobile-btn {
-            width: 60px;
-            height: 60px;
-            background: rgba(0, 0, 0, 0.3);
-            border: 2px solid rgba(255, 255, 255, 0.3);
-            border-radius: 50%;
-            /* 圓形按鈕 */
+            width: 65px;
+            height: 65px;
+            background: rgba(0, 0, 0, 0.4);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
             display: flex;
+            flex-direction: column;
             align-items: center;
             justify-content: center;
-            font-size: 22px;
-            color: white;
+            gap: 2px;
             cursor: pointer;
             pointer-events: auto;
             touch-action: manipulation;
+            backdrop-filter: blur(5px);
+            transition: all 0.2s ease;
+            position: relative;
+            overflow: hidden;
         }
 
-        /* 移除額外的按鈕區域，把所有按鈕整合到一排 */
-        .mobile-extra-buttons {
-            display: none;
+        /* 按鈕圖標 */
+        .mobile-btn .btn-icon {
+            font-size: 22px;
+            line-height: 1;
+            filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
+        }
+
+        /* 按鈕標籤 */
+        .mobile-btn .btn-label {
+            font-size: 9px;
+            color: rgba(255, 255, 255, 0.8);
+            font-weight: 500;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+        }
+
+        /* 按鈕懸停/按下效果 */
+        .mobile-btn:active {
+            transform: scale(0.95);
+            background: rgba(255, 107, 53, 0.3);
+            border-color: rgba(255, 107, 53, 0.5);
+        }
+
+        /* 激活狀態（用於切換類按鈕） */
+        .mobile-btn.active {
+            background: rgba(255, 107, 53, 0.4);
+            border-color: rgba(255, 107, 53, 0.6);
+        }
+
+        .mobile-btn.active .btn-label {
+            color: rgba(255, 255, 255, 1);
+        }
+
+        /* 特殊按鈕樣式 */
+        #sneakBtn.active {
+            background: rgba(100, 150, 255, 0.4);
+            border-color: rgba(100, 150, 255, 0.6);
+        }
+
+        #flyBtn.active {
+            background: rgba(100, 255, 100, 0.4);
+            border-color: rgba(100, 255, 100, 0.6);
+        }
+
+        /* 聊天按鈕特殊樣式 */
+        #mobileChatBtn {
+            background: rgba(255, 107, 53, 0.2);
+            border-color: rgba(255, 107, 53, 0.3);
+        }
+
+        /* 按鈕動畫效果 */
+        @keyframes buttonPulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(255, 107, 53, 0.4);
+            }
+
+            70% {
+                box-shadow: 0 0 0 10px rgba(255, 107, 53, 0);
+            }
+
+            100% {
+                box-shadow: 0 0 0 0 rgba(255, 107, 53, 0);
+            }
         }
 
         .mobile-btn:active {
-            transform: scale(0.95);
-            background: var(--bg-glass-hover);
-            border-color: var(--primary);
+            animation: buttonPulse 0.5s;
         }
 
-        /* 額外的移動端按鈕 */
-        .mobile-extra-buttons {
-            position: absolute;
-            bottom: 200px;
-            right: 40px;
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-            pointer-events: auto;
+        /* 響應式調整 */
+        @media (max-height: 600px) {
+            .mobile-buttons-container {
+                bottom: 40px;
+                gap: 6px;
+            }
+
+            .mobile-btn {
+                width: 55px;
+                height: 55px;
+            }
+
+            .mobile-btn .btn-icon {
+                font-size: 20px;
+            }
+
+            .mobile-btn .btn-label {
+                font-size: 8px;
+            }
+
+            .mobile-joystick {
+                width: 100px;
+                height: 100px;
+                bottom: 40px;
+            }
         }
 
-        /* 修復：移動端聊天按鈕 */
-        .mobile-chat-btn {
-            position: absolute;
-            top: 80px;
-            right: 20px;
-            width: 60px;
-            height: 60px;
-            background: rgba(0, 0, 0, 0.5);
-            border: 2px solid rgba(255, 255, 255, 0.3);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 20px;
-            color: white;
-            cursor: pointer;
-            pointer-events: auto !important;
-            /* 強制啟用點擊 */
-            z-index: 100 !important;
-            /* 確保在最上層 */
-            touch-action: manipulation;
-            -webkit-tap-highlight-color: transparent;
+        @media (max-width: 400px) {
+            .mobile-buttons-container {
+                right: 10px;
+            }
+
+            .mobile-joystick {
+                left: 20px;
+            }
         }
 
-        /* 點擊時的視覺反饋 */
-        .mobile-chat-btn:active {
-            transform: scale(0.95);
-            background: rgba(255, 107, 53, 0.5);
+        /* 平板優化 */
+        @media (min-width: 768px) and (max-width: 1024px) {
+            .mobile-buttons-container {
+                right: 30px;
+                bottom: 80px;
+                gap: 10px;
+            }
+
+            .mobile-btn {
+                width: 70px;
+                height: 70px;
+            }
+
+            .mobile-btn .btn-icon {
+                font-size: 24px;
+            }
+
+            .mobile-btn .btn-label {
+                font-size: 10px;
+            }
+
+            .mobile-joystick {
+                width: 140px;
+                height: 140px;
+                left: 50px;
+                bottom: 80px;
+            }
+
+            .joystick-knob {
+                width: 50px;
+                height: 50px;
+            }
+        }
+
+        /* 隱藏移動控制在非觸控設備上 */
+        @media (hover: hover) and (pointer: fine) {
+            #mobileControls {
+                display: none !important;
+            }
+        }
+
+        /* 顯示移動控制在觸控設備上 */
+        @media (hover: none) and (pointer: coarse) {
+            #mobileControls {
+                display: block !important;
+            }
         }
 
         /* 方塊切換通知 */
@@ -1304,24 +1409,40 @@
         <div id="playerNameTags"></div>
 
         <!-- 修復：移動端操作介面 -->
+        <!-- 修復：移動端操作介面 - 統一的按鈕佈局 -->
         <div id="mobileControls">
+            <!-- 左下角搖桿 -->
             <div class="mobile-joystick" id="moveJoystick">
                 <div class="joystick-knob" id="moveKnob"></div>
             </div>
 
-            <div class="mobile-action-buttons">
-                <div class="mobile-btn" id="jumpBtn">⬆️</div>
-                <div class="mobile-btn" id="breakBtn">⛏️</div>
-                <div class="mobile-btn" id="placeBtn">🧱</div>
-                <div class="mobile-btn" id="sneakBtn">⬇️</div>
+            <!-- 右側統一的按鈕列 -->
+            <div class="mobile-buttons-container">
+                <div class="mobile-btn" id="jumpBtn" title="跳躍">
+                    <span class="btn-icon">⬆️</span>
+                    <span class="btn-label">跳躍</span>
+                </div>
+                <div class="mobile-btn" id="sneakBtn" title="潛行">
+                    <span class="btn-icon">⬇️</span>
+                    <span class="btn-label">潛行</span>
+                </div>
+                <div class="mobile-btn" id="breakBtn" title="破壞">
+                    <span class="btn-icon">⛏️</span>
+                    <span class="btn-label">破壞</span>
+                </div>
+                <div class="mobile-btn" id="placeBtn" title="放置">
+                    <span class="btn-icon">🧱</span>
+                    <span class="btn-label">放置</span>
+                </div>
+                <div class="mobile-btn" id="flyBtn" title="飛行">
+                    <span class="btn-icon">🚁</span>
+                    <span class="btn-label">飛行</span>
+                </div>
+                <div class="mobile-btn" id="mobileChatBtn" title="聊天">
+                    <span class="btn-icon">💬</span>
+                    <span class="btn-label">聊天</span>
+                </div>
             </div>
-
-            <div class="mobile-extra-buttons">
-                <div class="mobile-btn" id="flyBtn">🚁</div>
-            </div>
-
-            <!-- 聊天按鈕獨立放置 -->
-            <div class="mobile-chat-btn" id="mobileChatBtn">💬</div>
         </div>
 
         <!-- 載入畫面 -->
@@ -2254,23 +2375,26 @@
         }
 
         // 修復：移動端控制系統 - 修復搖桿方向和添加潛行按鈕
+        // 完全重寫的移動端控制系統 - 支持多點觸控
         class MobileControls {
             constructor(game) {
                 this.game = game;
                 this.isMobile = this.detectMobile();
+
+                // 搖桿相關
                 this.joystickActive = false;
+                this.joystickTouchId = null;
                 this.joystickCenter = { x: 0, y: 0 };
                 this.joystickRadius = 60;
                 this.moveVector = { x: 0, y: 0 };
 
-                // 多點觸控追蹤
-                this.touches = new Map();
-                this.joystickTouchId = null;
+                // 視角控制相關
                 this.lookTouchId = null;
-                this.lastLookTouch = null;
+                this.lastLookPosition = null;
 
+                // 初始化
                 if (this.isMobile) {
-                    this.setupMobileControls();
+                    this.init();
                 }
             }
 
@@ -2279,41 +2403,20 @@
                     (navigator.maxTouchPoints && navigator.maxTouchPoints > 2);
             }
 
-            setupMobileControls() {
+            init() {
+                // 顯示移動控制介面
                 const mobileControls = document.getElementById('mobileControls');
                 if (mobileControls) {
                     mobileControls.style.display = 'block';
                 }
 
-                // 確保所有方法都存在且名稱正確
-                if (typeof this.setupJoystick === 'function') {
-                    this.setupJoystick();
-                } else {
-                    console.error('setupJoystick 方法不存在');
-                }
-
-                if (typeof this.setupActionButtons === 'function') {
-                    this.setupActionButtons();
-                } else {
-                    console.error('setupActionButtons 方法不存在');
-                }
-
-                if (typeof this.setupChatButton === 'function') {
-                    this.setupChatButton();
-                } else {
-                    console.error('setupChatButton 方法不存在');
-                }
-
-                if (typeof this.setupMultiTouchLook === 'function') {
-                    this.setupMultiTouchLook();
-                } else if (typeof this.setupTouchLook === 'function') {
-                    this.setupTouchLook(); // 如果沒有多點觸控方法，使用舊方法
-                } else {
-                    console.error('setupMultiTouchLook 或 setupTouchLook 方法不存在');
-                }
+                // 設置各個控制組件
+                this.setupJoystick();
+                this.setupButtons();
+                this.setupViewControl();
             }
 
-            // 確保 setupJoystick 方法存在
+            // ========== 搖桿控制 ==========
             setupJoystick() {
                 const joystick = document.getElementById('moveJoystick');
                 const knob = document.getElementById('moveKnob');
@@ -2323,204 +2426,378 @@
                     return;
                 }
 
-                const rect = joystick.getBoundingClientRect();
-                this.joystickCenter = {
-                    x: rect.left + rect.width / 2,
-                    y: rect.top + rect.height / 2
-                };
-
-                const handleStart = (e) => {
+                // 搖桿觸控開始
+                joystick.addEventListener('touchstart', (e) => {
                     e.preventDefault();
-                    this.joystickActive = true;
-                    joystick.style.opacity = '1';
-                };
+                    e.stopPropagation();
 
-                const handleMove = (e) => {
-                    if (!this.joystickActive) return;
-                    e.preventDefault();
+                    // 只處理第一個觸控點作為搖桿控制
+                    if (this.joystickTouchId === null && e.touches.length > 0) {
+                        const touch = e.touches[0];
+                        this.joystickTouchId = touch.identifier;
+                        this.joystickActive = true;
 
-                    const touch = e.touches ? e.touches[0] : e;
-                    const dx = touch.clientX - this.joystickCenter.x;
-                    const dy = touch.clientY - this.joystickCenter.y;
-                    const distance = Math.sqrt(dx * dx + dy * dy);
+                        // 更新搖桿中心位置
+                        const rect = joystick.getBoundingClientRect();
+                        this.joystickCenter = {
+                            x: rect.left + rect.width / 2,
+                            y: rect.top + rect.height / 2
+                        };
 
-                    if (distance <= this.joystickRadius) {
-                        knob.style.transform = `translate(-50%, -50%) translate(${dx}px, ${dy}px)`;
-                        this.moveVector.x = dx / this.joystickRadius;
-                        this.moveVector.y = -dy / this.joystickRadius;
-                    } else {
-                        const angle = Math.atan2(dy, dx);
-                        const limitedX = Math.cos(angle) * this.joystickRadius;
-                        const limitedY = Math.sin(angle) * this.joystickRadius;
-                        knob.style.transform = `translate(-50%, -50%) translate(${limitedX}px, ${limitedY}px)`;
-                        this.moveVector.x = Math.cos(angle);
-                        this.moveVector.y = -Math.sin(angle);
+                        joystick.style.opacity = '1';
+                        this.updateJoystickPosition(touch.clientX, touch.clientY);
                     }
-                };
+                });
 
-                const handleEnd = (e) => {
-                    e.preventDefault();
-                    this.joystickActive = false;
-                    knob.style.transform = 'translate(-50%, -50%)';
-                    this.moveVector = { x: 0, y: 0 };
-                    joystick.style.opacity = '0.8';
-                };
+                // 搖桿觸控移動
+                document.addEventListener('touchmove', (e) => {
+                    if (!this.joystickActive || this.joystickTouchId === null) return;
 
-                joystick.addEventListener('touchstart', handleStart);
-                joystick.addEventListener('touchmove', handleMove);
-                joystick.addEventListener('touchend', handleEnd);
-                joystick.addEventListener('touchcancel', handleEnd);
+                    // 找到對應的觸控點
+                    for (let i = 0; i < e.touches.length; i++) {
+                        const touch = e.touches[i];
+                        if (touch.identifier === this.joystickTouchId) {
+                            e.preventDefault();
+                            this.updateJoystickPosition(touch.clientX, touch.clientY);
+                            break;
+                        }
+                    }
+                });
+
+                // 搖桿觸控結束
+                document.addEventListener('touchend', (e) => {
+                    // 檢查是否是搖桿的觸控結束
+                    for (let i = 0; i < e.changedTouches.length; i++) {
+                        const touch = e.changedTouches[i];
+                        if (touch.identifier === this.joystickTouchId) {
+                            this.resetJoystick();
+                            break;
+                        }
+                    }
+                });
+
+                // 觸控取消（例如來電中斷）
+                document.addEventListener('touchcancel', (e) => {
+                    for (let i = 0; i < e.changedTouches.length; i++) {
+                        const touch = e.changedTouches[i];
+                        if (touch.identifier === this.joystickTouchId) {
+                            this.resetJoystick();
+                            break;
+                        }
+                    }
+                });
             }
 
-            // 確保其他方法也存在
-            setupActionButtons() {
-                const jumpBtn = document.getElementById('jumpBtn');
-                const breakBtn = document.getElementById('breakBtn');
-                const placeBtn = document.getElementById('placeBtn');
-                const sneakBtn = document.getElementById('sneakBtn');
-                const flyBtn = document.getElementById('flyBtn');
+            updateJoystickPosition(touchX, touchY) {
+                const knob = document.getElementById('moveKnob');
+                if (!knob) return;
 
-                if (jumpBtn) {
-                    jumpBtn.addEventListener('touchstart', (e) => {
-                        e.preventDefault();
-                        this.game.keys['Space'] = true;
-                    });
-                    jumpBtn.addEventListener('touchend', (e) => {
-                        e.preventDefault();
-                        this.game.keys['Space'] = false;
-                    });
+                const dx = touchX - this.joystickCenter.x;
+                const dy = touchY - this.joystickCenter.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+
+                if (distance <= this.joystickRadius) {
+                    // 在搖桿範圍內
+                    knob.style.transform = `translate(-50%, -50%) translate(${dx}px, ${dy}px)`;
+                    this.moveVector.x = dx / this.joystickRadius;
+                    this.moveVector.y = -dy / this.joystickRadius; // Y軸反轉
+                } else {
+                    // 限制在搖桿邊緣
+                    const angle = Math.atan2(dy, dx);
+                    const limitedX = Math.cos(angle) * this.joystickRadius;
+                    const limitedY = Math.sin(angle) * this.joystickRadius;
+                    knob.style.transform = `translate(-50%, -50%) translate(${limitedX}px, ${limitedY}px)`;
+                    this.moveVector.x = Math.cos(angle);
+                    this.moveVector.y = -Math.sin(angle); // Y軸反轉
                 }
+            }
 
-                if (sneakBtn) {
-                    sneakBtn.addEventListener('touchstart', (e) => {
-                        e.preventDefault();
-                        this.game.keys['ShiftLeft'] = true;
-                        sneakBtn.style.background = 'var(--primary)';
-                    });
-                    sneakBtn.addEventListener('touchend', (e) => {
-                        e.preventDefault();
-                        this.game.keys['ShiftLeft'] = false;
-                        sneakBtn.style.background = 'var(--bg-glass)';
-                    });
+            resetJoystick() {
+                const joystick = document.getElementById('moveJoystick');
+                const knob = document.getElementById('moveKnob');
+
+                this.joystickActive = false;
+                this.joystickTouchId = null;
+                this.moveVector = { x: 0, y: 0 };
+
+                if (knob) {
+                    knob.style.transform = 'translate(-50%, -50%)';
                 }
-
-                if (breakBtn) {
-                    breakBtn.addEventListener('touchstart', (e) => {
-                        e.preventDefault();
-                        this.handleBlockBreak();
-                    });
+                if (joystick) {
+                    joystick.style.opacity = '0.8';
                 }
+            }
 
-                if (placeBtn) {
-                    placeBtn.addEventListener('touchstart', (e) => {
-                        e.preventDefault();
-                        this.handleBlockPlace();
-                    });
-                }
+            // ========== 按鈕控制 ==========
+            // 在MobileControls類中更新setupButtons方法
+            setupButtons() {
+                // 跳躍按鈕（按住）
+                this.setupButton('jumpBtn', {
+                    start: () => { this.game.keys['Space'] = true; },
+                    end: () => { this.game.keys['Space'] = false; }
+                }, false); // 不是切換按鈕
 
-                if (flyBtn) {
-                    flyBtn.addEventListener('touchstart', (e) => {
-                        e.preventDefault();
+                // 潛行按鈕（切換）
+                this.setupButton('sneakBtn', {
+                    start: () => {
+                        this.game.keys['ShiftLeft'] = !this.game.keys['ShiftLeft'];
+                        const btn = document.getElementById('sneakBtn');
+                        if (btn) {
+                            if (this.game.keys['ShiftLeft']) {
+                                btn.classList.add('active');
+                            } else {
+                                btn.classList.remove('active');
+                            }
+                        }
+                    }
+                }, true); // 是切換按鈕
+
+                // 破壞方塊按鈕（單擊）
+                this.setupButton('breakBtn', {
+                    start: () => {
+                        const target = this.game.getTargetBlock();
+                        if (target) {
+                            this.game.removeBlock(target.x, target.y, target.z);
+                            if (this.game.isMultiplayer && this.game.multiplayerManager.isConnected) {
+                                this.game.multiplayerManager.sendBlockUpdate(target.x, target.y, target.z, null, 'break');
+                            }
+                        }
+                    }
+                }, false);
+
+                // 放置方塊按鈕（單擊）
+                this.setupButton('placeBtn', {
+                    start: () => {
+                        const target = this.game.getTargetBlock();
+                        if (target) {
+                            const place = this.game.getPlacePosition(target);
+                            if (place && !this.game.isPlayerColliding(place.x, place.y, place.z)) {
+                                this.game.setBlock(place.x, place.y, place.z, this.game.selectedBlock);
+                                this.game.regenerateNearbyChunks(place.x, place.y, place.z);
+                                if (this.game.isMultiplayer && this.game.multiplayerManager.isConnected) {
+                                    this.game.multiplayerManager.sendBlockUpdate(place.x, place.y, place.z, this.game.selectedBlock, 'place');
+                                }
+                            }
+                        }
+                    }
+                }, false);
+
+                // 飛行按鈕（切換）
+                this.setupButton('flyBtn', {
+                    start: () => {
                         this.game.flying = !this.game.flying;
+                        const btn = document.getElementById('flyBtn');
+                        if (btn) {
+                            if (this.game.flying) {
+                                btn.classList.add('active');
+                            } else {
+                                btn.classList.remove('active');
+                            }
+                        }
                         const status = this.game.flying ? '開啟' : '關閉';
                         this.game.chatSystem.addMessage(`飛行模式：${status}`, 'system');
-                    });
-                }
-            }
+                    }
+                }, true); // 是切換按鈕
 
-            setupChatButton() {
-                const chatBtn = document.getElementById('mobileChatBtn');
-
-                if (chatBtn) {
-                    chatBtn.addEventListener('touchstart', (e) => {
-                        e.preventDefault();
+                // 聊天按鈕（單擊）
+                this.setupButton('mobileChatBtn', {
+                    start: () => {
                         if (this.game.gameStarted) {
+                            console.log('開啟聊天');
                             this.game.chatSystem.activateInput();
                         }
+                    }
+                }, false);
+            }
+
+            setupButton(buttonId, handlers, isToggle = false) {
+                const button = document.getElementById(buttonId);
+                if (!button) {
+                    console.warn(`找不到按鈕: ${buttonId}`);
+                    return;
+                }
+
+                // 觸控事件
+                button.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (handlers.start) handlers.start();
+
+                    // 視覺反饋（非切換按鈕）
+                    if (!isToggle) {
+                        button.style.transform = 'scale(0.95)';
+                    }
+                });
+
+                if (handlers.end) {
+                    button.addEventListener('touchend', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handlers.end();
+                        button.style.transform = 'scale(1)';
+                    });
+
+                    button.addEventListener('touchcancel', (e) => {
+                        e.preventDefault();
+                        handlers.end();
+                        button.style.transform = 'scale(1)';
+                    });
+                } else if (!isToggle) {
+                    // 如果沒有end處理器且不是切換按鈕，touchend時恢復縮放
+                    button.addEventListener('touchend', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        button.style.transform = 'scale(1)';
                     });
                 }
             }
 
-            setupTouchLook() {
-                const canvas = this.game.canvas;
-                let lastTouch = null;
+            setupButton(buttonId, handlers) {
+                const button = document.getElementById(buttonId);
+                if (!button) {
+                    console.warn(`找不到按鈕: ${buttonId}`);
+                    return;
+                }
 
-                canvas.addEventListener('touchstart', (e) => {
-                    if (e.touches.length === 1) {
-                        lastTouch = {
-                            x: e.touches[0].clientX,
-                            y: e.touches[0].clientY
-                        };
-                    }
+                // 觸控事件
+                button.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (handlers.start) handlers.start();
+
+                    // 視覺反饋
+                    button.style.transform = 'scale(0.95)';
                 });
 
-                canvas.addEventListener('touchmove', (e) => {
-                    if (e.touches.length === 1 && lastTouch) {
+                if (handlers.end) {
+                    button.addEventListener('touchend', (e) => {
                         e.preventDefault();
-                        const touch = e.touches[0];
-                        const deltaX = touch.clientX - lastTouch.x;
-                        const deltaY = touch.clientY - lastTouch.y;
+                        e.stopPropagation();
+                        handlers.end();
+                        button.style.transform = 'scale(1)';
+                    });
 
-                        const sensitivity = this.game.gameSettings.get('mouseSensitivity') * 0.005;
-                        this.game.player.angle += deltaX * sensitivity;
-                        this.game.player.pitch -= deltaY * sensitivity;
-                        this.game.player.pitch = Math.max(-Math.PI / 2 + 0.1, Math.min(Math.PI / 2 - 0.1, this.game.player.pitch));
-
-                        lastTouch = {
-                            x: touch.clientX,
-                            y: touch.clientY
-                        };
-                    }
-                });
-
-                canvas.addEventListener('touchend', () => {
-                    lastTouch = null;
-                });
-            }
-
-            handleBlockBreak() {
-                if (!this.game.gameStarted || !this.game.worldGenerated) return;
-
-                const target = this.game.getTargetBlock();
-                if (target) {
-                    this.game.removeBlock(target.x, target.y, target.z);
-                    if (this.game.isMultiplayer && this.game.multiplayerManager.isConnected) {
-                        this.game.multiplayerManager.sendBlockUpdate(target.x, target.y, target.z, null, 'break');
-                    }
+                    button.addEventListener('touchcancel', (e) => {
+                        e.preventDefault();
+                        handlers.end();
+                        button.style.transform = 'scale(1)';
+                    });
+                } else {
+                    // 如果沒有end處理器，touchend時恢復縮放
+                    button.addEventListener('touchend', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        button.style.transform = 'scale(1)';
+                    });
                 }
             }
 
-            handleBlockPlace() {
-                if (!this.game.gameStarted || !this.game.worldGenerated) return;
+            // ========== 視角控制（多點觸控） ==========
+            setupViewControl() {
+                const canvas = this.game.canvas;
 
-                const target = this.game.getTargetBlock();
-                if (target) {
-                    const place = this.game.getPlacePosition(target);
-                    if (place && !this.game.isPlayerColliding(place.x, place.y, place.z)) {
-                        this.game.setBlock(place.x, place.y, place.z, this.game.selectedBlock);
-                        this.game.regenerateNearbyChunks(place.x, place.y, place.z);
-                        if (this.game.isMultiplayer && this.game.multiplayerManager.isConnected) {
-                            this.game.multiplayerManager.sendBlockUpdate(place.x, place.y, place.z, this.game.selectedBlock, 'place');
+                // 視角控制觸控開始
+                canvas.addEventListener('touchstart', (e) => {
+                    // 找一個不是搖桿的觸控點作為視角控制
+                    for (let i = 0; i < e.touches.length; i++) {
+                        const touch = e.touches[i];
+
+                        // 檢查是否已經有視角控制點，或是否是搖桿觸控
+                        if (this.lookTouchId === null && touch.identifier !== this.joystickTouchId) {
+                            // 檢查觸控點是否在UI元素上
+                            const element = document.elementFromPoint(touch.clientX, touch.clientY);
+                            if (element && (element.id === 'gameCanvas')) {
+                                this.lookTouchId = touch.identifier;
+                                this.lastLookPosition = {
+                                    x: touch.clientX,
+                                    y: touch.clientY
+                                };
+                                break;
+                            }
                         }
                     }
-                }
+                });
+
+                // 視角控制觸控移動
+                canvas.addEventListener('touchmove', (e) => {
+                    if (this.lookTouchId === null) return;
+
+                    // 找到視角控制的觸控點
+                    for (let i = 0; i < e.touches.length; i++) {
+                        const touch = e.touches[i];
+                        if (touch.identifier === this.lookTouchId && this.lastLookPosition) {
+                            e.preventDefault();
+
+                            const deltaX = touch.clientX - this.lastLookPosition.x;
+                            const deltaY = touch.clientY - this.lastLookPosition.y;
+
+                            // 應用靈敏度設置
+                            const sensitivity = this.game.gameSettings.get('mouseSensitivity') * 0.005;
+
+                            // 更新玩家視角
+                            this.game.player.angle += deltaX * sensitivity;
+                            this.game.player.pitch -= deltaY * sensitivity;
+
+                            // 限制俯仰角度
+                            this.game.player.pitch = Math.max(
+                                -Math.PI / 2 + 0.1,
+                                Math.min(Math.PI / 2 - 0.1, this.game.player.pitch)
+                            );
+
+                            // 更新最後位置
+                            this.lastLookPosition = {
+                                x: touch.clientX,
+                                y: touch.clientY
+                            };
+                            break;
+                        }
+                    }
+                });
+
+                // 視角控制觸控結束
+                canvas.addEventListener('touchend', (e) => {
+                    for (let i = 0; i < e.changedTouches.length; i++) {
+                        const touch = e.changedTouches[i];
+                        if (touch.identifier === this.lookTouchId) {
+                            this.lookTouchId = null;
+                            this.lastLookPosition = null;
+                            break;
+                        }
+                    }
+                });
+
+                // 觸控取消
+                canvas.addEventListener('touchcancel', (e) => {
+                    for (let i = 0; i < e.changedTouches.length; i++) {
+                        const touch = e.changedTouches[i];
+                        if (touch.identifier === this.lookTouchId) {
+                            this.lookTouchId = null;
+                            this.lastLookPosition = null;
+                            break;
+                        }
+                    }
+                });
             }
 
+            // ========== 更新方法 ==========
             update() {
                 if (!this.isMobile || !this.joystickActive) return;
 
+                // 根據搖桿輸入計算移動
                 const speed = this.game.moveSpeed;
                 const angle = this.game.player.angle;
 
+                // 計算移動向量
                 const forwardX = Math.cos(angle) * this.moveVector.y * speed;
                 const forwardZ = Math.sin(angle) * this.moveVector.y * speed;
-
                 const rightX = Math.cos(angle + Math.PI / 2) * this.moveVector.x * speed;
                 const rightZ = Math.sin(angle + Math.PI / 2) * this.moveVector.x * speed;
 
+                // 應用移動
                 const newX = this.game.player.x + forwardX + rightX;
                 const newZ = this.game.player.z + forwardZ + rightZ;
 
+                // 碰撞檢測
                 if (!this.game.checkCollision(newX, this.game.player.y, this.game.player.z)) {
                     this.game.player.x = newX;
                 }
