@@ -927,6 +927,7 @@
             pointer-events: auto;
         }
 
+        /* 修復：移動端聊天按鈕 */
         .mobile-chat-btn {
             position: absolute;
             top: 80px;
@@ -942,15 +943,18 @@
             font-size: 20px;
             color: white;
             cursor: pointer;
-            pointer-events: auto;
-            z-index: 95;
+            pointer-events: auto !important;
+            /* 強制啟用點擊 */
+            z-index: 100 !important;
             /* 確保在最上層 */
             touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
         }
 
+        /* 點擊時的視覺反饋 */
         .mobile-chat-btn:active {
             transform: scale(0.95);
-            background: var(--bg-glass-hover);
+            background: rgba(255, 107, 53, 0.5);
         }
 
         /* 方塊切換通知 */
@@ -1307,12 +1311,17 @@
 
             <div class="mobile-action-buttons">
                 <div class="mobile-btn" id="jumpBtn">⬆️</div>
-                <div class="mobile-btn" id="sneakBtn">⬇️</div>
                 <div class="mobile-btn" id="breakBtn">⛏️</div>
                 <div class="mobile-btn" id="placeBtn">🧱</div>
-                <div class="mobile-btn" id="flyBtn">🚁</div>
-                <div class="mobile-btn" id="mobileChatBtn">💬</div> <!-- 確保ID正確 -->
+                <div class="mobile-btn" id="sneakBtn">⬇️</div>
             </div>
+
+            <div class="mobile-extra-buttons">
+                <div class="mobile-btn" id="flyBtn">🚁</div>
+            </div>
+
+            <!-- 聊天按鈕獨立放置 -->
+            <div class="mobile-chat-btn" id="mobileChatBtn">💬</div>
         </div>
 
         <!-- 載入畫面 -->
@@ -1771,16 +1780,30 @@
             }
 
             // 激活聊天輸入
+            // 在MinecraftChatSystem類中
             activateInput() {
+                console.log('聊天系統：激活輸入');
+
                 this.isInputActive = true;
                 this.chatInput.classList.add('active');
-                this.messageInput.focus();
+                this.chatInput.style.display = 'block'; // 確保顯示
+
+                // 在移動設備上特別處理
+                const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+                if (isMobile) {
+                    // 延遲聚焦以確保虛擬鍵盤正確顯示
+                    setTimeout(() => {
+                        this.messageInput.focus();
+                        this.messageInput.click(); // iOS需要click事件
+                    }, 100);
+                } else {
+                    this.messageInput.focus();
+                }
+
                 this.showMessages();
 
-                // 修復：整個聊天系統接收滑鼠事件
-                document.getElementById('chatSystem').classList.add('active');
-
-                // 修復：釋放滑鼠指針鎖定
+                // 釋放滑鼠指針鎖定
                 if (document.pointerLockElement) {
                     document.exitPointerLock();
                 }
@@ -1789,6 +1812,8 @@
                     clearTimeout(this.visibilityTimer);
                     this.visibilityTimer = null;
                 }
+
+                console.log('聊天系統：輸入已激活');
             }
 
             // 停用聊天輸入
@@ -2243,7 +2268,6 @@
                 }
             }
 
-
             detectMobile() {
                 return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
                     (navigator.maxTouchPoints && navigator.maxTouchPoints > 2);
@@ -2255,111 +2279,136 @@
 
                 this.setupJoystick();
                 this.setupActionButtons();
-                this.setupChatButton(); // 確保這個方法被調用
+                this.setupChatButton(); // 單獨處理聊天按鈕
                 this.setupTouchLook();
             }
 
-            setupJoystick() {
-                const joystick = document.getElementById('moveJoystick');
-                const knob = document.getElementById('moveKnob');
+            setupChatButton() {
+                // 等待DOM完全加載
+                const setupChat = () => {
+                    const chatBtn = document.getElementById('mobileChatBtn');
 
-                const rect = joystick.getBoundingClientRect();
-                this.joystickCenter = {
-                    x: rect.left + rect.width / 2,
-                    y: rect.top + rect.height / 2
-                };
-
-                const handleStart = (e) => {
-                    e.preventDefault();
-                    this.joystickActive = true;
-                    joystick.style.opacity = '1';
-                };
-
-                const handleMove = (e) => {
-                    if (!this.joystickActive) return;
-                    e.preventDefault();
-
-                    const touch = e.touches ? e.touches[0] : e;
-                    const dx = touch.clientX - this.joystickCenter.x;
-                    const dy = touch.clientY - this.joystickCenter.y;
-                    const distance = Math.sqrt(dx * dx + dy * dy);
-
-                    if (distance <= this.joystickRadius) {
-                        knob.style.transform = `translate(-50%, -50%) translate(${dx}px, ${dy}px)`;
-                        // 修復：正確的搖桿方向映射
-                        this.moveVector.x = dx / this.joystickRadius;
-                        this.moveVector.y = -dy / this.joystickRadius; // 修復：反轉Y軸
-                    } else {
-                        const angle = Math.atan2(dy, dx);
-                        const limitedX = Math.cos(angle) * this.joystickRadius;
-                        const limitedY = Math.sin(angle) * this.joystickRadius;
-                        knob.style.transform = `translate(-50%, -50%) translate(${limitedX}px, ${limitedY}px)`;
-                        this.moveVector.x = Math.cos(angle);
-                        this.moveVector.y = -Math.sin(angle); // 修復：反轉Y軸
+                    if (!chatBtn) {
+                        console.error('找不到聊天按鈕元素！');
+                        return;
                     }
+
+                    console.log('設置聊天按鈕事件');
+
+                    // 移除所有舊的事件監聽器
+                    const newChatBtn = chatBtn.cloneNode(true);
+                    chatBtn.parentNode.replaceChild(newChatBtn, chatBtn);
+
+                    // 添加新的事件監聽器
+                    const handleChatClick = (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+
+                        console.log('聊天按鈕被點擊');
+
+                        // 確保遊戲已經開始
+                        if (!this.game || !this.game.gameStarted) {
+                            console.log('遊戲尚未開始');
+                            return;
+                        }
+
+                        // 確保聊天系統存在
+                        if (!this.game.chatSystem) {
+                            console.error('聊天系統不存在');
+                            return;
+                        }
+
+                        // 激活聊天
+                        console.log('激活聊天輸入');
+                        this.game.chatSystem.activateInput();
+
+                        // 提供視覺反饋
+                        newChatBtn.style.background = 'rgba(255, 107, 53, 0.5)';
+                        setTimeout(() => {
+                            newChatBtn.style.background = 'rgba(0, 0, 0, 0.5)';
+                        }, 200);
+                    };
+
+                    // 同時監聽多種事件類型
+                    newChatBtn.addEventListener('click', handleChatClick);
+                    newChatBtn.addEventListener('touchend', handleChatClick);
+
+                    // 防止touchstart默認行為
+                    newChatBtn.addEventListener('touchstart', (e) => {
+                        e.preventDefault();
+                        newChatBtn.style.background = 'rgba(255, 107, 53, 0.3)';
+                    });
+
+                    console.log('聊天按鈕事件設置完成');
                 };
 
-                const handleEnd = (e) => {
-                    e.preventDefault();
-                    this.joystickActive = false;
-                    knob.style.transform = 'translate(-50%, -50%)';
-                    this.moveVector = { x: 0, y: 0 };
-                    joystick.style.opacity = '0.8';
-                };
-
-                joystick.addEventListener('touchstart', handleStart);
-                joystick.addEventListener('touchmove', handleMove);
-                joystick.addEventListener('touchend', handleEnd);
-                joystick.addEventListener('mousedown', handleStart);
-                document.addEventListener('mousemove', handleMove);
-                document.addEventListener('mouseup', handleEnd);
+                // 確保DOM加載完成後設置
+                if (document.readyState === 'loading') {
+                    document.addEventListener('DOMContentLoaded', setupChat);
+                } else {
+                    setupChat();
+                }
             }
 
             setupActionButtons() {
                 const jumpBtn = document.getElementById('jumpBtn');
                 const breakBtn = document.getElementById('breakBtn');
                 const placeBtn = document.getElementById('placeBtn');
-                const sneakBtn = document.getElementById('sneakBtn'); // 修復：添加潛行按鈕
+                const sneakBtn = document.getElementById('sneakBtn');
                 const flyBtn = document.getElementById('flyBtn');
-                const chatBtn = document.getElementById('mobileChatBtn');
 
-                jumpBtn.addEventListener('touchstart', (e) => {
-                    e.preventDefault();
-                    this.game.keys['Space'] = true;
-                });
-                jumpBtn.addEventListener('touchend', (e) => {
-                    e.preventDefault();
-                    this.game.keys['Space'] = false;
-                });
+                // 跳躍按鈕
+                if (jumpBtn) {
+                    jumpBtn.addEventListener('touchstart', (e) => {
+                        e.preventDefault();
+                        this.game.keys['Space'] = true;
+                    });
+                    jumpBtn.addEventListener('touchend', (e) => {
+                        e.preventDefault();
+                        this.game.keys['Space'] = false;
+                    });
+                }
 
-                // 修復：添加潛行按鈕功能
-                sneakBtn.addEventListener('touchstart', (e) => {
-                    e.preventDefault();
-                    this.game.keys['ShiftLeft'] = true;
-                    sneakBtn.style.background = 'var(--primary)';
-                });
-                sneakBtn.addEventListener('touchend', (e) => {
-                    e.preventDefault();
-                    this.game.keys['ShiftLeft'] = false;
-                    sneakBtn.style.background = 'var(--bg-glass)';
-                });
+                // 潛行按鈕
+                if (sneakBtn) {
+                    sneakBtn.addEventListener('touchstart', (e) => {
+                        e.preventDefault();
+                        this.game.keys['ShiftLeft'] = true;
+                        sneakBtn.style.background = 'var(--primary)';
+                    });
+                    sneakBtn.addEventListener('touchend', (e) => {
+                        e.preventDefault();
+                        this.game.keys['ShiftLeft'] = false;
+                        sneakBtn.style.background = 'var(--bg-glass)';
+                    });
+                }
 
-                breakBtn.addEventListener('touchstart', (e) => {
-                    e.preventDefault();
-                    this.handleBlockBreak();
-                });
+                // 破壞方塊按鈕
+                if (breakBtn) {
+                    breakBtn.addEventListener('touchstart', (e) => {
+                        e.preventDefault();
+                        this.handleBlockBreak();
+                    });
+                }
 
-                placeBtn.addEventListener('touchstart', (e) => {
-                    e.preventDefault();
-                    this.handleBlockPlace();
-                });
+                // 放置方塊按鈕
+                if (placeBtn) {
+                    placeBtn.addEventListener('touchstart', (e) => {
+                        e.preventDefault();
+                        this.handleBlockPlace();
+                    });
+                }
 
-                flyBtn.addEventListener('touchstart', (e) => {
-                    e.preventDefault();
-                    this.game.flying = !this.game.flying;
-                    const status = this.game.flying ? '開啟' : '關閉';
-                    this.game.chatSystem.addMessage(`飛行模式：${status}`, 'system');
-                });
+                // 飛行模式按鈕
+                if (flyBtn) {
+                    flyBtn.addEventListener('touchstart', (e) => {
+                        e.preventDefault();
+                        this.game.flying = !this.game.flying;
+                        const status = this.game.flying ? '開啟' : '關閉';
+                        this.game.chatSystem.addMessage(`飛行模式：${status}`, 'system');
+                        flyBtn.style.background = this.game.flying ? 'var(--primary)' : 'var(--bg-glass)';
+                    });
+                }
             }
 
             // 專門為聊天按鈕設置事件處理
@@ -3012,10 +3061,10 @@
                         },
                         id: 10,
                         transparent: true,
-                        alpha: 0.1,
+                        alpha: 0.3, // 增加一點填充的不透明度，從0.1調整到0.3
                         name: '玻璃',
                         icon: '🔷',
-                        renderType: 'wireframe'
+                        renderType: 'glass' // 修改為專用渲染類型
                     }
                 };
 
@@ -3358,22 +3407,28 @@
                 `;
 
                 const wireframeFragmentSource = `
-                    precision mediump float;
-                    
-                    uniform vec3 uWireframeColor;
-                    uniform float uWireframeAlpha;
-                    uniform vec3 uCameraPosition;
-                    
-                    varying vec3 vWorldPosition;
-                    
-                    void main() {
-                        // 距離衰減
-                        float distance = length(vWorldPosition - uCameraPosition);
-                        float alpha = uWireframeAlpha * (1.0 - clamp(distance / 30.0, 0.0, 0.8));
-                        
-                        gl_FragColor = vec4(uWireframeColor, alpha);
-                    }
-                `;
+    precision mediump float;
+    
+    uniform vec3 uWireframeColor;
+    uniform float uWireframeAlpha;
+    uniform vec3 uCameraPosition;
+    
+    varying vec3 vWorldPosition;
+    
+    void main() {
+        // 距離衰減 - 更平滑的過渡
+        float distance = length(vWorldPosition - uCameraPosition);
+        float alpha = uWireframeAlpha * (1.0 - clamp(distance / 40.0, 0.0, 0.7));
+        
+        // 添加邊緣增強效果
+        vec3 finalColor = uWireframeColor;
+        
+        // 添加玻璃的微光效果
+        finalColor += vec3(0.1, 0.1, 0.2) * (1.0 - distance / 20.0);
+        
+        gl_FragColor = vec4(finalColor, alpha);
+    }
+`;
 
                 // 編譯主要著色器
                 const vertexShader = this.compileShader(vertexShaderSource, this.gl.VERTEX_SHADER);
@@ -4574,19 +4629,41 @@
                 );
             }
 
-            // 添加線框數據的輔助方法（加粗線條）
+            // 添加線框數據的輔助方法（參考Minecraft風格）
             addWireframeData(faceVertices, vertices, indices, indexOffset) {
                 for (let i = 0; i < 4; i++) {
                     vertices.push(...faceVertices[i]);
                 }
 
-                // 線框索引（邊緣線）
+                // 外邊框線條 - 基本方塊邊緣
                 indices.push(
                     indexOffset, indexOffset + 1,
                     indexOffset + 1, indexOffset + 2,
                     indexOffset + 2, indexOffset + 3,
                     indexOffset + 3, indexOffset
                 );
+
+                // Minecraft風格 - 添加內部十字線條增強識別度
+                if (Math.random() > 0.5) { // 隨機添加，模擬Minecraft中的變化
+                    // 對角線
+                    indices.push(
+                        indexOffset, indexOffset + 2,
+                        indexOffset + 1, indexOffset + 3
+                    );
+                }
+            }
+
+            renderGlassBlocks() {
+                // 首先渲染半透明填充
+                this.gl.useProgram(this.shaderProgram);
+                this.renderTransparentChunks();
+
+                // 然後渲染線框邊緣
+                this.gl.useProgram(this.wireframeShaderProgram);
+                this.renderWireframeChunks();
+
+                // 恢復默認設置
+                this.gl.lineWidth(1);
             }
 
             calculateFaceShading(faceIndex, normal) {
@@ -4801,29 +4878,22 @@
 
                     this.renderOpaqueChunks();
 
-                    // 第二階段：渲染透明物體（從遠到近）
+                    // 第二階段：渲染半透明物體（如水）
                     this.gl.enable(this.gl.BLEND);
                     this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA);
                     this.gl.depthMask(false);
 
                     this.renderTransparentChunks(cameraPos);
 
-                    // 第三階段：渲染線框物體（玻璃）- 加粗線條
-                    this.gl.useProgram(this.wireframeShaderProgram);
-                    this.gl.uniformMatrix4fv(this.wireframeUniforms.projectionMatrix, false, this.projectionMatrix);
-                    this.gl.uniformMatrix4fv(this.wireframeUniforms.viewMatrix, false, this.viewMatrix);
-                    this.gl.uniformMatrix4fv(this.wireframeUniforms.modelMatrix, false, this.modelMatrix);
-                    this.gl.uniform3f(this.wireframeUniforms.wireframeColor, 0.8, 0.9, 1.0);
-                    this.gl.uniform1f(this.wireframeUniforms.wireframeAlpha, 0.9);
-                    this.gl.uniform3fv(this.wireframeUniforms.cameraPosition, cameraPos);
-
-                    // 動態調整線寬（根據螢幕解析度）- 約1/16方塊大小
-                    const lineWidth = Math.max(2, Math.min(6, this.canvas.width / 320));
-                    this.gl.lineWidth(lineWidth);
+                    // 第三階段：渲染玻璃方塊（使用Minecraft風格邊框）
+                    this.gl.enable(this.gl.BLEND);
+                    this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA);
+                    this.gl.depthMask(false);
+                    this.gl.lineWidth(3); // 默認粗線條
 
                     this.renderWireframeChunks();
 
-                    // 恢復設置
+                    // 恢復默認設置
                     this.gl.depthMask(true);
                     this.gl.disable(this.gl.BLEND);
                     this.gl.lineWidth(1);
@@ -4921,6 +4991,20 @@
                 const playerChunkX = Math.floor((this.player.x + this.worldSize / 2) / 16);
                 const playerChunkZ = Math.floor((this.player.z + this.worldSize / 2) / 16);
                 const renderChunkDistance = Math.ceil(this.renderDistance / 16);
+
+                this.gl.useProgram(this.wireframeShaderProgram);
+                this.gl.uniformMatrix4fv(this.wireframeUniforms.projectionMatrix, false, this.projectionMatrix);
+                this.gl.uniformMatrix4fv(this.wireframeUniforms.viewMatrix, false, this.viewMatrix);
+                this.gl.uniformMatrix4fv(this.wireframeUniforms.modelMatrix, false, this.modelMatrix);
+
+                // 修改：更明顯的玻璃邊框顏色和不透明度
+                this.gl.uniform3f(this.wireframeUniforms.wireframeColor, 0.9, 0.95, 1.0); // 更亮的藍白色
+                this.gl.uniform1f(this.wireframeUniforms.wireframeAlpha, 0.95); // 更高的不透明度
+                this.gl.uniform3fv(this.wireframeUniforms.cameraPosition, [this.player.x, this.player.y + 1.6, this.player.z]);
+
+                // 修改：增加線寬，模仿Minecraft Java版的粗邊框
+                const lineWidth = Math.max(3, Math.min(10, this.canvas.width / 200)); // 更粗的線條
+                this.gl.lineWidth(lineWidth);
 
                 for (let dx = -renderChunkDistance; dx <= renderChunkDistance; dx++) {
                     for (let dz = -renderChunkDistance; dz <= renderChunkDistance; dz++) {
