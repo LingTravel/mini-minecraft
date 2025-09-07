@@ -7,7 +7,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-database-compat.js"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Minecraft WebGL - 高級版</title>
+    <title>Minecraft WebGL - 完美版</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
         @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap');
@@ -19,30 +19,29 @@
             --primary-light: #FF8A5B;
             --secondary: #FFA500;
             --accent: #FFB84D;
-            
+
             /* 背景色彩 */
             --bg-primary: #0A0A0A;
             --bg-secondary: #1A1A1A;
             --bg-tertiary: #2A2A2A;
             --bg-glass: rgba(255, 107, 53, 0.08);
             --bg-glass-hover: rgba(255, 107, 53, 0.15);
-            
+
             /* 文字色彩 */
             --text-primary: #FFFFFF;
             --text-secondary: #CCCCCC;
             --text-muted: #888888;
             --text-accent: var(--primary);
-            
+
             /* 邊框和陰影 */
             --border: rgba(255, 107, 53, 0.2);
             --border-hover: rgba(255, 107, 53, 0.4);
             --shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
             --shadow-hover: 0 12px 48px rgba(255, 107, 53, 0.2);
-            
-            /* 響應式斷點 */
-            --mobile-max: 768px;
-            --tablet-max: 1024px;
-            --desktop-min: 1025px;
+
+            /* 玻璃效果 */
+            --glass-bg: rgba(255, 255, 255, 0.05);
+            --glass-border: rgba(255, 255, 255, 0.1);
         }
 
         * {
@@ -255,82 +254,89 @@
             line-height: 1.1;
         }
 
-        /* 完全重寫的Minecraft風格聊天系統 */
+        /* 完全重寫的Minecraft Java版聊天系統 */
         #chatSystem {
             position: absolute;
             bottom: 120px;
             left: 20px;
-            width: 400px;
+            width: 320px;
             z-index: 200;
             pointer-events: none;
-            font-family: 'JetBrains Mono', monospace;
+            font-family: 'Minecraft', 'JetBrains Mono', monospace;
         }
 
         #chatMessages {
-            max-height: 180px;
-            overflow: hidden;
-            margin-bottom: 4px;
+            max-height: 160px;
+            overflow-y: auto;
+            /* 修改為auto，允許滾動 */
+            margin-bottom: 2px;
             opacity: 0;
-            transition: opacity 0.3s ease;
+            transition: opacity 0.2s ease;
             display: flex;
             flex-direction: column;
-            gap: 1px;
+            gap: 0;
+            pointer-events: none;
+            /* 默認不接收滑鼠事件 */
         }
 
         #chatMessages.visible {
             opacity: 1;
+            pointer-events: auto;
+            /* 可見時接收滑鼠事件，允許滾動 */
         }
+
+        #chatSystem.active {
+            pointer-events: auto;
+            /* 聊天激活時接收滑鼠事件 */
+        }
+
 
         .chat-message {
             background: rgba(0, 0, 0, 0.5);
             color: white;
-            padding: 2px 6px;
+            padding: 1px 4px;
             font-size: 12px;
             font-family: 'JetBrains Mono', monospace;
-            animation: slideInLeft 0.3s ease;
+            animation: slideInLeft 0.2s ease;
             word-wrap: break-word;
-            line-height: 1.3;
-            border-left: 2px solid transparent;
+            line-height: 1.2;
             max-width: 100%;
             white-space: pre-wrap;
+            margin: 0;
+            border: none;
         }
 
-        /* Minecraft聊天顏色系統 */
+        /* Minecraft Java版聊天顏色系統 */
         .chat-message.system {
             color: #FFFF55;
-            border-left-color: #FFFF55;
         }
 
         .chat-message.player {
             color: #FFFFFF;
-            border-left-color: var(--primary);
         }
 
         .chat-message.error {
             color: #FF5555;
-            border-left-color: #FF5555;
         }
 
         .chat-message.command {
             color: #55FFFF;
-            border-left-color: #55FFFF;
         }
 
         .chat-message.info {
             color: #55FF55;
-            border-left-color: #55FF55;
         }
 
         .chat-message.warning {
             color: #FFAA00;
-            border-left-color: #FFAA00;
         }
 
         @keyframes slideInLeft {
             from {
                 opacity: 0;
-                transform: translateX(-10px);
+                transform: translateX(-5px);
             }
+
             to {
                 opacity: 1;
                 transform: translateX(0);
@@ -339,41 +345,30 @@
 
         #chatInput {
             display: none;
-            background: rgba(0, 0, 0, 0.8);
-            border: 1px solid var(--border);
-            border-radius: 4px;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            border-radius: 0;
             pointer-events: auto;
+            /* 始終接收滑鼠事件 */
             position: relative;
-            backdrop-filter: blur(10px);
+            height: 20px;
         }
 
         #chatInput.active {
             display: block;
-            border-color: var(--primary);
-            box-shadow: 0 0 8px rgba(255, 107, 53, 0.3);
-        }
-
-        #chatInput::before {
-            content: '>';
-            position: absolute;
-            left: 8px;
-            top: 50%;
-            transform: translateY(-50%);
-            color: var(--primary);
-            font-family: 'JetBrains Mono', monospace;
-            font-weight: 600;
-            font-size: 14px;
         }
 
         #messageInput {
             width: 100%;
-            padding: 8px 12px 8px 24px;
+            padding: 2px 4px;
             background: transparent;
             border: none;
             color: white;
             font-size: 12px;
             font-family: 'JetBrains Mono', monospace;
             outline: none;
+            height: 16px;
+            line-height: 16px;
         }
 
         #messageInput::placeholder {
@@ -399,29 +394,7 @@
             backdrop-filter: blur(5px);
         }
 
-        /* 方塊高亮系統 */
-        .block-highlight {
-            position: absolute;
-            border: 2px solid var(--primary);
-            pointer-events: none;
-            z-index: 140;
-            border-radius: 2px;
-            box-shadow: 0 0 8px rgba(255, 107, 53, 0.5);
-                        animation: highlightPulse 2s ease-in-out infinite;
-        }
-
-        @keyframes highlightPulse {
-            0%, 100% { 
-                opacity: 0.6;
-                transform: scale(1);
-            }
-            50% { 
-                opacity: 1;
-                transform: scale(1.02);
-            }
-        }
-
-        /* 現代化主選單 */
+        /* 修復：現代化主選單 - 按鈕置中 */
         #mainMenu {
             position: fixed;
             top: 0;
@@ -443,8 +416,14 @@
             padding: 48px;
             max-width: 500px;
             width: 90%;
+            max-height: 80vh;
+            /* 限制最大高度 */
+            overflow-y: auto;
+            /* 添加垂直滾動 */
             box-shadow: var(--shadow);
             animation: menuSlideIn 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+            text-align: center;
+            /* 確保內容置中 */
         }
 
         @keyframes menuSlideIn {
@@ -452,6 +431,7 @@
                 opacity: 0;
                 transform: translateY(40px) scale(0.95);
             }
+
             to {
                 opacity: 1;
                 transform: translateY(0) scale(1);
@@ -480,18 +460,21 @@
             font-weight: 400;
         }
 
+        /* 修復：遊戲模式按鈕置中 */
         .game-modes {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
+            display: flex;
+            flex-direction: column;
             gap: 16px;
             margin: 24px 0;
+            align-items: center;
+            /* 確保按鈕置中 */
         }
 
         .mode-button {
             background: var(--bg-glass);
             border: 1px solid var(--border);
             border-radius: 16px;
-            padding: 24px;
+            padding: 24px 32px;
             cursor: pointer;
             transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
             display: flex;
@@ -500,59 +483,224 @@
             gap: 12px;
             text-align: center;
             color: var(--text-primary);
-            font-family: inherit;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .mode-button::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, var(--bg-glass-hover), transparent);
-            transition: left 0.6s ease;
-        }
-
-        .mode-button:hover::before {
-            left: 100%;
+            width: 280px;
+            /* 固定寬度確保一致性 */
+            max-width: 100%;
         }
 
         .mode-button:hover {
             transform: translateY(-4px);
-            border-color: var(--primary);
+            border-color: var(--border-hover);
             background: var(--bg-glass-hover);
             box-shadow: var(--shadow-hover);
         }
 
         .mode-icon {
-            font-size: 2.5rem;
+            font-size: 2rem;
             margin-bottom: 8px;
         }
 
         .mode-title {
             font-size: 1.2rem;
             font-weight: 600;
-            color: var(--primary);
+            color: var(--text-accent);
+            margin-bottom: 4px;
         }
 
         .mode-desc {
             font-size: 0.9rem;
             color: var(--text-secondary);
-            font-weight: 400;
+            opacity: 0.8;
         }
 
-        /* 暫停選單 */
+        .menu-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-top: 24px;
+            align-items: center;
+            /* 確保按鈕置中 */
+        }
+
+        .menu-btn {
+            background: var(--bg-glass);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 12px 24px;
+            color: var(--text-primary);
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            font-size: 1rem;
+            font-weight: 500;
+            min-width: 200px;
+            text-align: center;
+        }
+
+        .menu-btn:hover {
+            transform: translateY(-2px);
+            border-color: var(--border-hover);
+            background: var(--bg-glass-hover);
+            box-shadow: 0 6px 20px rgba(255, 107, 53, 0.25);
+        }
+
+        .menu-btn.primary {
+            background: var(--primary);
+            border-color: var(--primary);
+            color: white;
+        }
+
+        .menu-btn.primary:hover {
+            background: var(--primary-dark);
+            border-color: var(--primary-dark);
+        }
+
+        /* 修復：設定選單 - 完整的滑桿系統 */
+        #settingsMenu {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
+            z-index: 300;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .settings-container {
+            background: var(--bg-glass);
+            backdrop-filter: blur(40px);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            padding: 48px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            /* 限制最大高度 */
+            overflow-y: auto;
+            /* 添加垂直滾動 */
+            box-shadow: var(--shadow);
+        }
+
+
+        .settings-container h2 {
+            text-align: center;
+            margin-bottom: 32px;
+            font-size: 2rem;
+            color: var(--text-accent);
+        }
+
+        .setting-group {
+            margin-bottom: 32px;
+            padding: 20px;
+            background: var(--bg-glass);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+        }
+
+        .setting-group h3 {
+            color: var(--text-accent);
+            margin-bottom: 20px;
+            font-size: 1.3rem;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 8px;
+        }
+
+        .setting-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            padding: 12px 0;
+        }
+
+        .setting-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .setting-label {
+            color: var(--text-primary);
+            font-weight: 500;
+            font-size: 1rem;
+            min-width: 150px;
+        }
+
+        .setting-control {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-width: 200px;
+        }
+
+        .slider {
+            flex: 1;
+            height: 6px;
+            background: var(--bg-tertiary);
+            border-radius: 3px;
+            outline: none;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            background: var(--primary);
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .slider::-webkit-slider-thumb:hover {
+            background: var(--primary-light);
+            transform: scale(1.1);
+        }
+
+        .slider::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            background: var(--primary);
+            border-radius: 50%;
+            cursor: pointer;
+            border: none;
+            transition: all 0.3s ease;
+        }
+
+        .slider::-moz-range-thumb:hover {
+            background: var(--primary-light);
+            transform: scale(1.1);
+        }
+
+        .slider-value {
+            color: var(--text-accent);
+            font-weight: 600;
+            font-family: 'JetBrains Mono', monospace;
+            min-width: 60px;
+            text-align: center;
+            background: var(--bg-glass);
+            padding: 4px 8px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+        }
+
+        /* 修復：暫停選單 */
         #pauseMenu {
-            position: absolute;
+            position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
             background: rgba(0, 0, 0, 0.8);
-            z-index: 250;
+            z-index: 300;
             display: none;
             align-items: center;
             justify-content: center;
@@ -563,90 +711,58 @@
             background: var(--bg-glass);
             backdrop-filter: blur(40px);
             border: 1px solid var(--border);
-            border-radius: 20px;
-            padding: 40px;
-            text-align: center;
-            box-shadow: var(--shadow);
+            border-radius: 24px;
+            padding: 48px;
             max-width: 400px;
             width: 90%;
+            max-height: 80vh;
+            /* 限制最大高度 */
+            overflow-y: auto;
+            /* 添加垂直滾動 */
+            box-shadow: var(--shadow);
+            text-align: center;
         }
 
         .pause-container h2 {
-            color: var(--primary);
-            margin-bottom: 24px;
+            margin-bottom: 32px;
             font-size: 2rem;
-            font-weight: 600;
-        }
-
-        .menu-buttons {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-
-        .menu-btn {
-            background: var(--bg-glass);
-            color: var(--text-primary);
-            border: 1px solid var(--border);
-            padding: 12px 24px;
-            font-size: 1rem;
-            font-weight: 500;
-            border-radius: 12px;
-            cursor: pointer;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            font-family: inherit;
-        }
-
-        .menu-btn:hover {
-            background: var(--bg-glass-hover);
-            border-color: var(--primary);
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(255, 107, 53, 0.2);
-        }
-
-        .menu-btn.primary {
-            background: var(--primary);
-            color: white;
-            border-color: var(--primary);
-        }
-
-        .menu-btn.primary:hover {
-            background: var(--primary-dark);
-            border-color: var(--primary-dark);
+            color: var(--text-accent);
         }
 
         /* 多人遊戲選單 */
         #multiplayerMenu {
-            position: absolute;
+            position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.8);
-            z-index: 250;
+            background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
+            z-index: 300;
             display: none;
             align-items: center;
             justify-content: center;
-            backdrop-filter: blur(10px);
         }
 
         .multiplayer-container {
             background: var(--bg-glass);
             backdrop-filter: blur(40px);
             border: 1px solid var(--border);
-            border-radius: 20px;
-            padding: 40px;
-            box-shadow: var(--shadow);
+            border-radius: 24px;
+            padding: 48px;
             max-width: 500px;
             width: 90%;
+            max-height: 80vh;
+            /* 限制最大高度 */
+            overflow-y: auto;
+            /* 添加垂直滾動 */
+            box-shadow: var(--shadow);
         }
 
         .multiplayer-container h2 {
-            color: var(--primary);
-            margin-bottom: 24px;
-            font-size: 2rem;
-            font-weight: 600;
             text-align: center;
+            margin-bottom: 32px;
+            font-size: 2rem;
+            color: var(--text-accent);
         }
 
         .input-group {
@@ -655,21 +771,19 @@
 
         .input-group label {
             display: block;
-            color: var(--text-secondary);
             margin-bottom: 8px;
+            color: var(--text-primary);
             font-weight: 500;
-            font-size: 0.9rem;
         }
 
         .input-group input {
             width: 100%;
             padding: 12px 16px;
+            background: var(--bg-glass);
             border: 1px solid var(--border);
             border-radius: 12px;
-            background: var(--bg-glass);
             color: var(--text-primary);
             font-size: 1rem;
-            font-family: inherit;
             transition: all 0.3s ease;
         }
 
@@ -683,28 +797,68 @@
             color: var(--text-muted);
         }
 
-        /* 移動端操作介面 */
-        #mobileControls {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            z-index: 120;
-            display: none;
-            pointer-events: none;
+        #roomInfo {
+            background: var(--bg-glass);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 20px;
+            margin: 20px 0;
         }
 
+        #roomInfo h3 {
+            color: var(--text-accent);
+            margin-bottom: 12px;
+        }
+
+        #roomInfo p {
+            margin-bottom: 8px;
+            color: var(--text-secondary);
+        }
+
+        #playerList {
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            padding: 12px;
+            margin-top: 12px;
+        }
+
+        .player-item {
+            padding: 8px;
+            margin-bottom: 4px;
+            background: var(--bg-glass);
+            border-radius: 6px;
+            color: var(--text-primary);
+        }
+
+        .player-item:last-child {
+            margin-bottom: 0;
+        }
+
+        /* 修復：移動端控制 - 完整重寫 */
+        #mobileControls {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 90;
+            pointer-events: none;
+            display: none;
+        }
+
+        /* 移動搖桿 */
         .mobile-joystick {
             position: absolute;
-            bottom: 20px;
-            left: 20px;
+            bottom: 120px;
+            left: 60px;
             width: 120px;
             height: 120px;
-            background: var(--bg-glass);
-            border: 2px solid var(--border);
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.3);
             border-radius: 50%;
             pointer-events: auto;
-            touch-action: none;
+            opacity: 0.8;
+            transition: opacity 0.3s ease;
         }
 
         .joystick-knob {
@@ -714,18 +868,20 @@
             width: 40px;
             height: 40px;
             background: var(--primary);
+            border: 2px solid white;
             border-radius: 50%;
             transform: translate(-50%, -50%);
             transition: all 0.1s ease;
-            box-shadow: 0 4px 12px rgba(255, 107, 53, 0.3);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
         }
 
+        /* 右側操作按鈕 */
         .mobile-action-buttons {
             position: absolute;
-            bottom: 20px;
-            right: 20px;
-            display: flex;
-            flex-direction: column;
+            bottom: 80px;
+            right: 40px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
             gap: 12px;
             pointer-events: auto;
         }
@@ -739,12 +895,12 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 24px;
+            font-size: 20px;
             color: var(--text-primary);
             cursor: pointer;
-            transition: all 0.2s ease;
+            transition: all 0.3s ease;
             backdrop-filter: blur(10px);
-            touch-action: manipulation;
+            user-select: none;
         }
 
         .mobile-btn:active {
@@ -753,186 +909,101 @@
             border-color: var(--primary);
         }
 
+        /* 額外的移動端按鈕 */
+        .mobile-extra-buttons {
+            position: absolute;
+            bottom: 200px;
+            right: 40px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            pointer-events: auto;
+        }
+
         .mobile-chat-btn {
             position: absolute;
-            top: 20px;
+            top: 80px;
             right: 20px;
             width: 50px;
             height: 50px;
             background: var(--bg-glass);
             border: 2px solid var(--border);
-            border-radius: 12px;
+            border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 20px;
+            font-size: 18px;
             color: var(--text-primary);
             cursor: pointer;
-            transition: all 0.2s ease;
-            backdrop-filter: blur(10px);
             pointer-events: auto;
-            touch-action: manipulation;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+        }
+
+        .mobile-chat-btn:active {
+            transform: scale(0.95);
+            background: var(--bg-glass-hover);
+        }
+
+        /* 方塊切換通知 */
+        #blockSwitchNotification {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: var(--bg-glass);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 20px 30px;
+            z-index: 200;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            pointer-events: none;
+            font-size: 1.1rem;
+            font-weight: 500;
+            color: var(--text-primary);
+            box-shadow: var(--shadow);
         }
 
         /* 載入畫面 */
         #loading {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            color: var(--primary);
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--bg-primary);
+            z-index: 400;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-primary);
             font-size: 1.5rem;
-            z-index: 300;
-            text-align: center;
             font-weight: 500;
         }
 
         .loading-bar {
             width: 300px;
             height: 8px;
-            background: var(--bg-glass);
+            background: var(--bg-tertiary);
             border-radius: 4px;
-            margin: 20px auto;
+            margin-top: 20px;
             overflow: hidden;
-            border: 1px solid var(--border);
         }
 
         .loading-progress {
             height: 100%;
             background: linear-gradient(90deg, var(--primary), var(--secondary));
+            border-radius: 4px;
             width: 0%;
             transition: width 0.3s ease;
-            border-radius: 4px;
-        }
-
-        /* 響應式設計 */
-        @media (max-width: 768px) {
-            .menu-container {
-                padding: 32px 24px;
-            }
-
-            .menu-title h1 {
-                font-size: 2.5rem;
-            }
-
-            .game-modes {
-                grid-template-columns: 1fr;
-            }
-
-            #gameUI {
-                max-width: 240px;
-            }
-
-            .ui-panel {
-                padding: 12px 16px;
-            }
-
-            #inventory {
-                gap: 3px;
-                padding: 8px;
-                max-width: 90%;
-                overflow-x: auto;
-            }
-
-            .inventory-slot {
-                width: 48px;
-                height: 48px;
-            }
-
-            .inventory-slot .block-icon {
-                font-size: 18px;
-            }
-
-            .inventory-slot .block-name {
-                font-size: 7px;
-            }
-
-            #chatSystem {
-                width: calc(100% - 40px);
-                max-width: 350px;
-            }
-
-            #mobileControls {
-                display: block;
-            }
-
-            #crosshair {
-                width: 24px;
-                height: 24px;
-            }
-
-            #crosshair::before {
-                width: 2px;
-                height: 14px;
-                left: 11px;
-                top: 5px;
-            }
-
-            #crosshair::after {
-                width: 14px;
-                height: 2px;
-                left: 5px;
-                top: 11px;
-            }
-        }
-
-        @media (max-width: 480px) {
-            .menu-title h1 {
-                font-size: 2rem;
-            }
-
-            .mode-button {
-                padding: 16px;
-            }
-
-            .mode-icon {
-                font-size: 2rem;
-            }
-
-            #inventory {
-                flex-wrap: wrap;
-                max-width: 95%;
-                justify-content: center;
-            }
-
-            .inventory-slot {
-                width: 44px;
-                height: 44px;
-            }
-
-            .inventory-slot .block-icon {
-                font-size: 16px;
-            }
-
-            .inventory-slot .block-name {
-                font-size: 6px;
-            }
-        }
-
-        /* 方塊切換通知 */
-        #blockSwitchNotification {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: var(--bg-glass);
-            color: var(--primary);
-            padding: 16px 24px;
-            border-radius: 12px;
-            border: 1px solid var(--border);
-            font-size: 1.1rem;
-            font-weight: 500;
-            z-index: 300;
-            pointer-events: none;
-            backdrop-filter: blur(20px);
-            box-shadow: var(--shadow);
-            opacity: 0;
-            transition: opacity 0.3s ease;
         }
 
         /* 錯誤訊息 */
         .error-message {
-            position: absolute;
+            position: fixed;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
@@ -945,7 +1016,7 @@
             border: 1px solid #ff4444;
             box-shadow: 0 20px 60px rgba(255, 68, 68, 0.3);
             max-width: 400px;
-                        backdrop-filter: blur(20px);
+            backdrop-filter: blur(20px);
         }
 
         .error-message h3 {
@@ -993,8 +1064,15 @@
 
         /* 動畫效果 */
         @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.7; }
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.7;
+            }
         }
 
         .loading::after {
@@ -1004,17 +1082,126 @@
 
         /* 觸控優化 */
         @media (hover: none) and (pointer: coarse) {
+            #mobileControls {
+                display: block;
+            }
+
             .inventory-slot:hover {
                 transform: none;
             }
-            
+
             .mode-button:hover {
                 transform: none;
             }
-            
+
             .menu-btn:hover {
                 transform: none;
             }
+        }
+
+        /* 響應式設計 */
+        /* 響應式設計增強 */
+        @media (max-height: 700px) {
+
+            .menu-container,
+            .settings-container,
+            .pause-container,
+            .multiplayer-container {
+                padding: 30px;
+                max-height: 90vh;
+            }
+
+            .menu-title h1 {
+                font-size: 2.5rem;
+                margin-bottom: 5px;
+            }
+
+            .menu-subtitle {
+                font-size: 0.9rem;
+            }
+
+            .game-modes {
+                margin: 15px 0;
+                gap: 12px;
+            }
+
+            .mode-button {
+                padding: 18px 24px;
+            }
+        }
+
+        @media (max-height: 500px) {
+
+            .menu-container,
+            .settings-container,
+            .pause-container,
+            .multiplayer-container {
+                padding: 20px;
+                max-height: 95vh;
+            }
+
+            .menu-title h1 {
+                font-size: 2rem;
+                margin-bottom: 3px;
+            }
+
+            .menu-subtitle {
+                font-size: 0.8rem;
+            }
+
+            .game-modes {
+                margin: 10px 0;
+                gap: 8px;
+            }
+
+            .mode-button {
+                padding: 12px 18px;
+            }
+
+            .mode-icon {
+                font-size: 1.5rem;
+                margin-bottom: 5px;
+            }
+
+            .mode-title {
+                font-size: 1rem;
+            }
+
+            .mode-desc {
+                font-size: 0.8rem;
+            }
+        }
+
+        /* 滾動條樣式 - 確保與遊戲風格一致 */
+        .menu-container::-webkit-scrollbar,
+        .settings-container::-webkit-scrollbar,
+        .pause-container::-webkit-scrollbar,
+        .multiplayer-container::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        .menu-container::-webkit-scrollbar-track,
+        .settings-container::-webkit-scrollbar-track,
+        .pause-container::-webkit-scrollbar-track,
+        .multiplayer-container::-webkit-scrollbar-track {
+            background: var(--bg-glass);
+            border-radius: 4px;
+        }
+
+        .menu-container::-webkit-scrollbar-thumb,
+        .settings-container::-webkit-scrollbar-thumb,
+        .pause-container::-webkit-scrollbar-thumb,
+        .multiplayer-container::-webkit-scrollbar-thumb {
+            background: var(--primary);
+            border-radius: 4px;
+        }
+
+        .menu-container::-webkit-scrollbar-thumb:hover,
+        .settings-container::-webkit-scrollbar-thumb:hover,
+        .pause-container::-webkit-scrollbar-thumb:hover,
+        .multiplayer-container::-webkit-scrollbar-thumb:hover {
+            background: var(--primary-dark);
         }
     </style>
 </head>
@@ -1030,6 +1217,10 @@
                 <div class="ui-row">
                     <span class="ui-label">座標</span>
                     <span class="ui-value" id="position">0, 0, 0</span>
+                </div>
+                <div class="ui-row">
+                    <span class="ui-label">FPS</span>
+                    <span class="ui-value" id="fpsDisplay">60</span>
                 </div>
                 <div class="ui-row" id="multiplayerInfo" style="display: none;">
                     <span class="ui-label">玩家</span>
@@ -1086,7 +1277,7 @@
             </div>
         </div>
 
-        <!-- 完全重寫的Minecraft風格聊天系統 -->
+        <!-- 完全重寫的Minecraft Java版聊天系統 -->
         <div id="chatSystem">
             <div id="chatMessages"></div>
             <div id="chatInput">
@@ -1097,19 +1288,23 @@
         <!-- 玩家名牌容器 -->
         <div id="playerNameTags"></div>
 
-        <!-- 移動端操作介面 -->
+        <!-- 修復：移動端操作介面 -->
         <div id="mobileControls">
             <div class="mobile-joystick" id="moveJoystick">
                 <div class="joystick-knob" id="moveKnob"></div>
             </div>
-            
+
             <div class="mobile-action-buttons">
                 <div class="mobile-btn" id="jumpBtn">⬆️</div>
                 <div class="mobile-btn" id="breakBtn">⛏️</div>
                 <div class="mobile-btn" id="placeBtn">🧱</div>
+                <div class="mobile-btn" id="sneakBtn">⬇️</div>
+            </div>
+
+            <div class="mobile-extra-buttons">
                 <div class="mobile-btn" id="flyBtn">🚁</div>
             </div>
-            
+
             <div class="mobile-chat-btn" id="mobileChatBtn">💬</div>
         </div>
 
@@ -1122,12 +1317,12 @@
         </div>
     </div>
 
-    <!-- 主選單 -->
+    <!-- 修復：主選單 - 按鈕置中 -->
     <div id="mainMenu">
         <div class="menu-container">
             <div class="menu-title">
                 <h1>Minecraft</h1>
-                <p class="menu-subtitle">WebGL 高級版</p>
+                <p class="menu-subtitle">WebGL 完美版</p>
             </div>
 
             <div class="game-modes">
@@ -1142,16 +1337,103 @@
                     <div class="mode-desc">與朋友建造</div>
                 </button>
             </div>
+
+            <div class="menu-buttons">
+                <button class="menu-btn" id="settingsMenuButton">⚙️ 設定</button>
+            </div>
         </div>
     </div>
 
-    <!-- 暫停選單 -->
+    <!-- 修復：設定選單 - 完整的滑桿系統 -->
+    <div id="settingsMenu">
+        <div class="settings-container">
+            <h2>⚙️ 遊戲設定</h2>
+
+            <div class="setting-group">
+                <h3>🎮 遊戲設定</h3>
+                <div class="setting-item">
+                    <span class="setting-label">視野距離</span>
+                    <div class="setting-control">
+                        <div class="slider-container">
+                            <input type="range" class="slider" id="renderDistanceSlider" min="8" max="64" value="32"
+                                step="4">
+                            <span class="slider-value" id="renderDistanceValue">32 格</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="setting-item">
+                    <span class="setting-label">視野角度 (FOV)</span>
+                    <div class="setting-control">
+                        <div class="slider-container">
+                            <input type="range" class="slider" id="fovSlider" min="30" max="110" value="70" step="5">
+                            <span class="slider-value" id="fovValue">70°</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="setting-item">
+                    <span class="setting-label">滑鼠靈敏度</span>
+                    <div class="setting-control">
+                        <div class="slider-container">
+                            <input type="range" class="slider" id="sensitivitySlider" min="0.1" max="3.0" value="1.0"
+                                step="0.1">
+                            <span class="slider-value" id="sensitivityValue">1.0</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="setting-group">
+                <h3>⚡ 性能設定</h3>
+                <div class="setting-item">
+                    <span class="setting-label">最大FPS</span>
+                    <div class="setting-control">
+                        <div class="slider-container">
+                            <input type="range" class="slider" id="maxFpsSlider" min="30" max="120" value="60"
+                                step="10">
+                            <span class="slider-value" id="maxFpsValue">60</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="setting-item">
+                    <span class="setting-label">區塊更新頻率</span>
+                    <div class="setting-control">
+                        <div class="slider-container">
+                            <input type="range" class="slider" id="chunkUpdateSlider" min="1" max="10" value="5"
+                                step="1">
+                            <span class="slider-value" id="chunkUpdateValue">5</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="setting-group">
+                <h3>🎵 音效設定</h3>
+                <div class="setting-item">
+                    <span class="setting-label">主音量</span>
+                    <div class="setting-control">
+                        <div class="slider-container">
+                            <input type="range" class="slider" id="volumeSlider" min="0" max="100" value="50" step="5">
+                            <span class="slider-value" id="volumeValue">50%</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="menu-buttons">
+                <button class="menu-btn primary" id="saveSettingsButton">💾 保存設定</button>
+                <button class="menu-btn" id="backToMainMenuButton">⬅️ 返回主選單</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 修復：暫停選單 -->
     <div id="pauseMenu">
         <div class="pause-container">
             <h2>⏸️ 遊戲暫停</h2>
             <div class="menu-buttons">
                 <button class="menu-btn primary" id="resumeButton">▶️ 繼續遊戲</button>
                 <button class="menu-btn" id="multiplayerButton">👥 多人遊戲</button>
+                <button class="menu-btn" id="settingsButton">⚙️ 設定</button>
                 <button class="menu-btn" id="mainMenuButton">🏠 主選單</button>
             </div>
         </div>
@@ -1227,7 +1509,131 @@
             firebaseAvailable = false;
         }
 
-        // 完全重寫的Minecraft風格聊天系統
+        // 修復：遊戲設定管理 - 完整的設定系統
+        class GameSettings {
+            constructor() {
+                this.settings = {
+                    renderDistance: 32,
+                    fov: 70,
+                    maxFps: 60,
+                    mouseSensitivity: 1.0,
+                    volume: 50,
+                    chunkUpdateRate: 5
+                };
+                this.loadSettings();
+                this.setupSettingsUI();
+            }
+
+            loadSettings() {
+                const saved = localStorage.getItem('minecraftSettings');
+                if (saved) {
+                    this.settings = { ...this.settings, ...JSON.parse(saved) };
+                }
+            }
+
+            saveSettings() {
+                localStorage.setItem('minecraftSettings', JSON.stringify(this.settings));
+                console.log('設定已保存:', this.settings);
+            }
+
+            setupSettingsUI() {
+                // 視野距離滑桿
+                const renderDistanceSlider = document.getElementById('renderDistanceSlider');
+                const renderDistanceValue = document.getElementById('renderDistanceValue');
+
+                renderDistanceSlider.value = this.settings.renderDistance;
+                renderDistanceValue.textContent = this.settings.renderDistance + ' 格';
+
+                renderDistanceSlider.addEventListener('input', (e) => {
+                    this.settings.renderDistance = parseInt(e.target.value);
+                    renderDistanceValue.textContent = this.settings.renderDistance + ' 格';
+                    if (window.game) {
+                        window.game.renderDistance = this.settings.renderDistance;
+                    }
+                });
+
+                // FOV滑桿
+                const fovSlider = document.getElementById('fovSlider');
+                const fovValue = document.getElementById('fovValue');
+
+                fovSlider.value = this.settings.fov;
+                fovValue.textContent = this.settings.fov + '°';
+
+                fovSlider.addEventListener('input', (e) => {
+                    this.settings.fov = parseInt(e.target.value);
+                    fovValue.textContent = this.settings.fov + '°';
+                    if (window.game) {
+                        window.game.updateProjectionMatrix();
+                    }
+                });
+
+                // 滑鼠靈敏度滑桿
+                const sensitivitySlider = document.getElementById('sensitivitySlider');
+                const sensitivityValue = document.getElementById('sensitivityValue');
+
+                sensitivitySlider.value = this.settings.mouseSensitivity;
+                sensitivityValue.textContent = this.settings.mouseSensitivity;
+
+                sensitivitySlider.addEventListener('input', (e) => {
+                    this.settings.mouseSensitivity = parseFloat(e.target.value);
+                    sensitivityValue.textContent = this.settings.mouseSensitivity;
+                });
+
+                // 最大FPS滑桿
+                const maxFpsSlider = document.getElementById('maxFpsSlider');
+                const maxFpsValue = document.getElementById('maxFpsValue');
+
+                maxFpsSlider.value = this.settings.maxFps;
+                maxFpsValue.textContent = this.settings.maxFps;
+
+                maxFpsSlider.addEventListener('input', (e) => {
+                    this.settings.maxFps = parseInt(e.target.value);
+                    maxFpsValue.textContent = this.settings.maxFps;
+                });
+
+                // 區塊更新頻率滑桿
+                const chunkUpdateSlider = document.getElementById('chunkUpdateSlider');
+                const chunkUpdateValue = document.getElementById('chunkUpdateValue');
+
+                chunkUpdateSlider.value = this.settings.chunkUpdateRate;
+                chunkUpdateValue.textContent = this.settings.chunkUpdateRate;
+
+                chunkUpdateSlider.addEventListener('input', (e) => {
+                    this.settings.chunkUpdateRate = parseInt(e.target.value);
+                    chunkUpdateValue.textContent = this.settings.chunkUpdateRate;
+                });
+
+                // 音量滑桿
+                const volumeSlider = document.getElementById('volumeSlider');
+                const volumeValue = document.getElementById('volumeValue');
+
+                volumeSlider.value = this.settings.volume;
+                volumeValue.textContent = this.settings.volume + '%';
+
+                volumeSlider.addEventListener('input', (e) => {
+                    this.settings.volume = parseInt(e.target.value);
+                    volumeValue.textContent = this.settings.volume + '%';
+                });
+
+                // 保存設定按鈕
+                document.getElementById('saveSettingsButton').addEventListener('click', () => {
+                    this.saveSettings();
+                    if (window.game && window.game.chatSystem) {
+                        window.game.chatSystem.addMessage('設定已保存！', 'system');
+                    }
+                });
+            }
+
+            get(key) {
+                return this.settings[key];
+            }
+
+            set(key, value) {
+                this.settings[key] = value;
+            }
+        }
+
+        // 完全重寫的Minecraft Java版聊天系統
         class MinecraftChatSystem {
             constructor() {
                 this.messages = [];
@@ -1236,7 +1642,7 @@
                 this.chatHistory = [];
                 this.historyIndex = -1;
                 this.visibilityTimer = null;
-                this.fadeDelay = 5000;
+                this.fadeDelay = 3000; // 3秒後淡出，更接近MC
                 this.commandRegistry = new Map();
 
                 this.setupElements();
@@ -1252,6 +1658,9 @@
 
             setupEventListeners() {
                 this.messageInput.addEventListener('keydown', (e) => {
+                    // 阻止事件冒泡到遊戲的按鍵處理器
+                    e.stopPropagation();
+
                     if (e.code === 'Enter') {
                         e.preventDefault();
                         this.sendMessage();
@@ -1268,8 +1677,10 @@
                         e.preventDefault();
                         this.autoComplete();
                     }
+                    // 其他按鍵正常處理，不阻止
                 });
 
+                // 修復：確保聊天輸入框失去焦點時正確處理
                 this.messageInput.addEventListener('blur', () => {
                     setTimeout(() => {
                         if (this.isInputActive) {
@@ -1337,16 +1748,9 @@
                     execute: () => this.showCoords()
                 });
 
-                this.commandRegistry.set('biome', {
-                    description: '顯示當前生物群落',
-                    usage: '/biome',
-                    category: '信息',
-                    execute: () => this.showBiome()
-                });
-
                 this.commandRegistry.set('fps', {
                     description: '顯示FPS信息',
-                                        usage: '/fps',
+                    usage: '/fps',
                     category: '系統',
                     execute: () => this.showFPS()
                 });
@@ -1357,13 +1761,6 @@
                     category: '信息',
                     execute: () => this.showSeed()
                 });
-
-                this.commandRegistry.set('gamemode', {
-                    description: '切換遊戲模式',
-                    usage: '/gamemode <creative|survival>',
-                    category: '遊戲',
-                    execute: (args) => this.changeGamemode(args)
-                });
             }
 
             // 激活聊天輸入
@@ -1372,6 +1769,14 @@
                 this.chatInput.classList.add('active');
                 this.messageInput.focus();
                 this.showMessages();
+
+                // 修復：整個聊天系統接收滑鼠事件
+                document.getElementById('chatSystem').classList.add('active');
+
+                // 修復：釋放滑鼠指針鎖定
+                if (document.pointerLockElement) {
+                    document.exitPointerLock();
+                }
 
                 if (this.visibilityTimer) {
                     clearTimeout(this.visibilityTimer);
@@ -1386,7 +1791,16 @@
                 this.messageInput.value = '';
                 this.messageInput.blur();
                 this.historyIndex = -1;
+
+                // 修復：整個聊天系統不再接收滑鼠事件
+                document.getElementById('chatSystem').classList.remove('active');
+
                 this.startFadeTimer();
+
+                // 修復：如果遊戲正在進行，重新鎖定滑鼠指針
+                if (window.game && window.game.gameStarted && !window.game.isPaused) {
+                    window.game.canvas.requestPointerLock();
+                }
             }
 
             // 顯示聊天訊息
@@ -1415,7 +1829,7 @@
                 }, this.fadeDelay);
             }
 
-            // 添加訊息
+            // 添加訊息 - 完全按照MC Java版樣式
             addMessage(content, type = 'system', playerName = null) {
                 const message = {
                     content: content,
@@ -1437,7 +1851,7 @@
                 this.scrollToBottom();
             }
 
-            // 渲染單個訊息
+            // 渲染單個訊息 - MC Java版格式
             renderMessage(message) {
                 const messageDiv = document.createElement('div');
                 messageDiv.className = `chat-message ${message.type}`;
@@ -1446,28 +1860,28 @@
                 let content = '';
                 switch (message.type) {
                     case 'system':
-                        content = `§e[系統] ${message.content}`;
+                        content = `[${this.formatTime()}] [系統] ${message.content}`;
                         break;
                     case 'player':
-                        content = `§f<${message.playerName}> ${message.content}`;
+                        content = `[${this.formatTime()}] <${message.playerName}> ${message.content}`;
                         break;
                     case 'error':
-                        content = `§c[錯誤] ${message.content}`;
+                        content = `[${this.formatTime()}] [錯誤] ${message.content}`;
                         break;
                     case 'command':
-                        content = `§b[指令] ${message.content}`;
+                        content = `[${this.formatTime()}] [指令] ${message.content}`;
                         break;
                     case 'info':
-                        content = `§a[信息] ${message.content}`;
+                        content = `[${this.formatTime()}] [信息] ${message.content}`;
                         break;
                     case 'warning':
-                        content = `§6[警告] ${message.content}`;
+                        content = `[${this.formatTime()}] [警告] ${message.content}`;
                         break;
                     default:
-                        content = message.content;
+                        content = `[${this.formatTime()}] ${message.content}`;
                 }
 
-                messageDiv.innerHTML = this.formatMinecraftText(content);
+                messageDiv.textContent = content;
                 this.chatMessages.appendChild(messageDiv);
 
                 const messageElements = this.chatMessages.children;
@@ -1476,10 +1890,9 @@
                 }
             }
 
-            // Minecraft文字格式化
-            formatMinecraftText(text) {
-                // 移除Minecraft顏色代碼（§符號），因為我們用CSS處理顏色
-                return this.escapeHtml(text.replace(/§[0-9a-fk-or]/g, ''));
+            formatTime() {
+                const now = new Date();
+                return now.toTimeString().slice(0, 8);
             }
 
             // 發送訊息
@@ -1527,7 +1940,6 @@
             // 完整的幫助系統
             showHelp(args) {
                 if (args.length === 0) {
-                    // 顯示分類指令列表
                     const categories = {};
                     this.commandRegistry.forEach((info, cmd) => {
                         if (!categories[info.category]) {
@@ -1538,14 +1950,13 @@
 
                     this.addMessage('=== 指令幫助 ===', 'command');
                     Object.keys(categories).forEach(category => {
-                        this.addMessage(`§6${category}:`, 'command');
+                        this.addMessage(`${category}:`, 'command');
                         categories[category].forEach(cmd => {
                             this.addMessage(`  /${cmd} - ${this.commandRegistry.get(cmd).description}`, 'command');
                         });
                     });
                     this.addMessage('使用 /help <指令名稱> 查看詳細用法', 'info');
                 } else {
-                    // 顯示特定指令的詳細幫助
                     const cmd = args[0].toLowerCase();
                     const commandInfo = this.commandRegistry.get(cmd);
                     if (commandInfo) {
@@ -1559,14 +1970,12 @@
                 }
             }
 
-            // 清除訊息
             clearMessages() {
                 this.messages = [];
                 this.chatMessages.innerHTML = '';
                 this.addMessage('聊天記錄已清除', 'system');
             }
 
-            // 顯示時間
             showTime() {
                 const now = new Date();
                 const timeStr = now.toLocaleTimeString('zh-TW');
@@ -1574,7 +1983,6 @@
                 this.addMessage(`當前時間: ${dateStr} ${timeStr}`, 'info');
             }
 
-            // 處理傳送指令
             handleTeleport(args) {
                 if (args.length !== 3) {
                     this.addMessage('用法: /tp <x> <y> <z>', 'error');
@@ -1600,7 +2008,6 @@
                 }
             }
 
-            // 切換飛行模式
             toggleFly() {
                 if (window.game) {
                     window.game.flying = !window.game.flying;
@@ -1611,24 +2018,22 @@
                 }
             }
 
-            // 列出玩家
             listPlayers() {
                 if (window.game && window.game.isMultiplayer) {
                     const players = window.game.multiplayerManager.getOtherPlayers();
                     const currentPlayer = window.game.multiplayerManager.playerName || '你';
 
                     this.addMessage(`=== 在線玩家 (${players.length + 1}) ===`, 'info');
-                    this.addMessage(`§a• ${currentPlayer} (你)`, 'info');
+                    this.addMessage(`• ${currentPlayer} (你)`, 'info');
 
                     players.forEach(player => {
-                        this.addMessage(`§f• ${player.name}`, 'info');
+                        this.addMessage(`• ${player.name}`, 'info');
                     });
                 } else {
                     this.addMessage('單人模式 - 只有你一個玩家', 'info');
                 }
             }
 
-            // 顯示延遲
             showPing() {
                 if (window.game && window.game.isMultiplayer && firebaseAvailable) {
                     const startTime = Date.now();
@@ -1641,7 +2046,6 @@
                 }
             }
 
-            // 顯示座標
             showCoords() {
                 if (window.game && window.game.player) {
                     const x = window.game.player.x.toFixed(2);
@@ -1653,17 +2057,6 @@
                 }
             }
 
-            // 顯示生物群落
-            showBiome() {
-                if (window.game && window.game.player) {
-                    const biome = window.game.getBiome(window.game.player.x, window.game.player.z);
-                    this.addMessage(`當前生物群落: ${biome}`, 'info');
-                } else {
-                    this.addMessage('無法獲取生物群落：遊戲未啟動', 'error');
-                }
-            }
-
-            // 顯示FPS
             showFPS() {
                 if (window.game) {
                     this.addMessage(`當前FPS: ${window.game.fps}`, 'info');
@@ -1674,7 +2067,6 @@
                 }
             }
 
-            // 顯示種子
             showSeed() {
                 if (window.game) {
                     this.addMessage(`世界種子: ${window.game.worldSeed || 'random'}`, 'info');
@@ -1683,24 +2075,6 @@
                 }
             }
 
-            // 切換遊戲模式
-            changeGamemode(args) {
-                if (args.length === 0) {
-                    this.addMessage('用法: /gamemode <creative|survival>', 'error');
-                    return;
-                }
-
-                const mode = args[0].toLowerCase();
-                if (mode === 'creative' || mode === 'c') {
-                    this.addMessage('遊戲模式已切換為創造模式', 'info');
-                } else if (mode === 'survival' || mode === 's') {
-                    this.addMessage('遊戲模式已切換為生存模式', 'info');
-                } else {
-                    this.addMessage('無效的遊戲模式。可用模式: creative, survival', 'error');
-                }
-            }
-
-            // 歷史記錄導航
             navigateHistory(direction) {
                 if (this.chatHistory.length === 0) return;
 
@@ -1719,14 +2093,12 @@
                 }
             }
 
-            // 自動完成
             autoComplete() {
                 const input = this.messageInput.value;
                 const cursorPos = this.messageInput.selectionStart;
                 const beforeCursor = input.substring(0, cursorPos);
 
                 if (beforeCursor.startsWith('/')) {
-                    // 指令自動完成
                     const cmdPart = beforeCursor.slice(1);
                     const matches = Array.from(this.commandRegistry.keys()).filter(cmd =>
                         cmd.startsWith(cmdPart.toLowerCase())
@@ -1736,60 +2108,23 @@
                         this.messageInput.value = '/' + matches[0] + input.substring(cursorPos);
                         this.messageInput.setSelectionRange(matches[0].length + 1, matches[0].length + 1);
                     } else if (matches.length > 1) {
-                                                this.addMessage(`可用指令: ${matches.join(', ')}`, 'info');
-                    }
-                } else {
-                    // 玩家名稱自動完成
-                    const words = beforeCursor.split(' ');
-                    const lastWord = words[words.length - 1];
-
-                    if (lastWord.length < 2) return;
-
-                    let playerNames = [];
-                    if (window.game && window.game.isMultiplayer) {
-                        const players = window.game.multiplayerManager.getOtherPlayers();
-                        playerNames = players.map(p => p.name);
-                        playerNames.push(window.game.multiplayerManager.playerName || '你');
-                    }
-
-                    const matches = playerNames.filter(name =>
-                        name.toLowerCase().startsWith(lastWord.toLowerCase())
-                    );
-
-                    if (matches.length === 1) {
-                        words[words.length - 1] = matches[0];
-                        const newValue = words.join(' ') + input.substring(cursorPos);
-                        this.messageInput.value = newValue;
-                        this.messageInput.setSelectionRange(words.join(' ').length, words.join(' ').length);
-                    } else if (matches.length > 1) {
-                        this.addMessage(`可能的玩家: ${matches.join(', ')}`, 'info');
+                        this.addMessage(`可用指令: ${matches.join(', ')}`, 'info');
                     }
                 }
             }
 
-            // 接收多人遊戲訊息
             receiveMessage(data) {
                 this.addMessage(data.message, 'player', data.playerName);
             }
 
-            // 滾動到底部
             scrollToBottom() {
                 this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
             }
 
-            // HTML轉義
-            escapeHtml(text) {
-                const div = document.createElement('div');
-                div.textContent = text;
-                return div.innerHTML;
-            }
-
-            // 檢查是否激活
             isActive() {
                 return this.isInputActive;
             }
 
-            // 銷毀
             destroy() {
                 if (this.visibilityTimer) {
                     clearTimeout(this.visibilityTimer);
@@ -1797,7 +2132,96 @@
             }
         }
 
-        // 移動端控制系統
+        // 優化的物品欄滾動系統（支援滑鼠滾輪）
+        class InventoryScrollSystem {
+            constructor() {
+                this.inventory = document.getElementById('inventory');
+                this.isScrolling = false;
+                this.scrollVelocity = 0;
+                this.scrollThreshold = 50;
+                this.accumulatedDelta = 0;
+                this.friction = 0.95;
+                this.setupScrolling();
+            }
+
+            setupScrolling() {
+                // 滑鼠滾輪 - 完全按照Minecraft方式
+                document.addEventListener('wheel', (e) => {
+                    if (!window.game || !window.game.gameStarted || window.game.isPaused || window.game.chatSystem.isActive()) return;
+
+                    e.preventDefault();
+                    this.handleScroll(e.deltaY);
+                });
+
+                // 觸控滾動
+                let startX = 0;
+                let startScrollLeft = 0;
+
+                this.inventory.addEventListener('touchstart', (e) => {
+                    startX = e.touches[0].clientX;
+                    startScrollLeft = this.inventory.scrollLeft;
+                });
+
+                this.inventory.addEventListener('touchmove', (e) => {
+                    e.preventDefault();
+                    const x = e.touches[0].clientX;
+                    const walk = (x - startX) * 2;
+                    this.inventory.scrollLeft = startScrollLeft - walk;
+                });
+
+                this.startInertiaAnimation();
+            }
+
+            handleScroll(deltaY) {
+                this.accumulatedDelta += deltaY;
+
+                if (Math.abs(this.accumulatedDelta) >= this.scrollThreshold) {
+                    const direction = this.accumulatedDelta > 0 ? 1 : -1;
+                    this.switchBlock(direction);
+                    this.accumulatedDelta = 0;
+                }
+            }
+
+            switchBlock(direction) {
+                if (!window.game) return;
+
+                const blockTypes = Object.keys(window.game.blockTypes);
+                const currentIndex = blockTypes.indexOf(window.game.selectedBlock);
+                let newIndex;
+
+                if (direction > 0) {
+                    newIndex = (currentIndex + 1) % blockTypes.length;
+                } else {
+                    newIndex = (currentIndex - 1 + blockTypes.length) % blockTypes.length;
+                }
+
+                window.game.selectedBlock = blockTypes[newIndex];
+                window.game.updateInventoryUI();
+                window.game.showBlockSwitchNotification();
+
+                const selectedSlot = document.querySelector('.inventory-slot.active');
+                if (selectedSlot) {
+                    selectedSlot.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'nearest',
+                        inline: 'center'
+                    });
+                }
+            }
+
+            startInertiaAnimation() {
+                const animate = () => {
+                    if (Math.abs(this.scrollVelocity) > 0.1) {
+                        this.inventory.scrollLeft += this.scrollVelocity;
+                        this.scrollVelocity *= this.friction;
+                    }
+                    requestAnimationFrame(animate);
+                };
+                animate();
+            }
+        }
+
+        // 修復：移動端控制系統 - 修復搖桿方向和添加潛行按鈕
         class MobileControls {
             constructor(game) {
                 this.game = game;
@@ -1806,7 +2230,7 @@
                 this.joystickCenter = { x: 0, y: 0 };
                 this.joystickRadius = 60;
                 this.moveVector = { x: 0, y: 0 };
-                
+
                 if (this.isMobile) {
                     this.setupMobileControls();
                 }
@@ -1814,30 +2238,23 @@
 
             detectMobile() {
                 return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
-                       (navigator.maxTouchPoints && navigator.maxTouchPoints > 2);
+                    (navigator.maxTouchPoints && navigator.maxTouchPoints > 2);
             }
 
             setupMobileControls() {
                 const mobileControls = document.getElementById('mobileControls');
                 mobileControls.style.display = 'block';
 
-                // 虛擬搖桿
                 this.setupJoystick();
-                
-                // 動作按鈕
                 this.setupActionButtons();
-                
-                // 聊天按鈕
                 this.setupChatButton();
-                
-                // 觸控視角控制
                 this.setupTouchLook();
             }
 
             setupJoystick() {
                 const joystick = document.getElementById('moveJoystick');
                 const knob = document.getElementById('moveKnob');
-                
+
                 const rect = joystick.getBoundingClientRect();
                 this.joystickCenter = {
                     x: rect.left + rect.width / 2,
@@ -1861,15 +2278,16 @@
 
                     if (distance <= this.joystickRadius) {
                         knob.style.transform = `translate(-50%, -50%) translate(${dx}px, ${dy}px)`;
+                        // 修復：正確的搖桿方向映射
                         this.moveVector.x = dx / this.joystickRadius;
-                        this.moveVector.y = dy / this.joystickRadius;
+                        this.moveVector.y = -dy / this.joystickRadius; // 修復：反轉Y軸
                     } else {
                         const angle = Math.atan2(dy, dx);
                         const limitedX = Math.cos(angle) * this.joystickRadius;
                         const limitedY = Math.sin(angle) * this.joystickRadius;
                         knob.style.transform = `translate(-50%, -50%) translate(${limitedX}px, ${limitedY}px)`;
                         this.moveVector.x = Math.cos(angle);
-                        this.moveVector.y = Math.sin(angle);
+                        this.moveVector.y = -Math.sin(angle); // 修復：反轉Y軸
                     }
                 };
 
@@ -1893,6 +2311,7 @@
                 const jumpBtn = document.getElementById('jumpBtn');
                 const breakBtn = document.getElementById('breakBtn');
                 const placeBtn = document.getElementById('placeBtn');
+                const sneakBtn = document.getElementById('sneakBtn'); // 修復：添加潛行按鈕
                 const flyBtn = document.getElementById('flyBtn');
 
                 jumpBtn.addEventListener('touchstart', (e) => {
@@ -1902,6 +2321,18 @@
                 jumpBtn.addEventListener('touchend', (e) => {
                     e.preventDefault();
                     this.game.keys['Space'] = false;
+                });
+
+                // 修復：添加潛行按鈕功能
+                sneakBtn.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    this.game.keys['ShiftLeft'] = true;
+                    sneakBtn.style.background = 'var(--primary)';
+                });
+                sneakBtn.addEventListener('touchend', (e) => {
+                    e.preventDefault();
+                    this.game.keys['ShiftLeft'] = false;
+                    sneakBtn.style.background = 'var(--bg-glass)';
                 });
 
                 breakBtn.addEventListener('touchstart', (e) => {
@@ -1952,8 +2383,10 @@
                         const deltaX = touch.clientX - lastTouch.x;
                         const deltaY = touch.clientY - lastTouch.y;
 
-                        this.game.player.angle += deltaX * 0.005;
-                        this.game.player.pitch -= deltaY * 0.005;
+                        // 使用設定中的滑鼠靈敏度
+                        const sensitivity = this.game.gameSettings.get('mouseSensitivity') * 0.005;
+                        this.game.player.angle += deltaX * sensitivity;
+                        this.game.player.pitch -= deltaY * sensitivity;
                         this.game.player.pitch = Math.max(-Math.PI / 2 + 0.1, Math.min(Math.PI / 2 - 0.1, this.game.player.pitch));
 
                         lastTouch = {
@@ -1999,12 +2432,15 @@
             update() {
                 if (!this.isMobile || !this.joystickActive) return;
 
-                // 將搖桿輸入轉換為移動
-                const speed = 0.15;
+                // 修復：正確的移動方向計算
+                const speed = this.game.moveSpeed;
                 const angle = this.game.player.angle;
-                
+
+                // 前後移動（Y軸）
                 const forwardX = Math.cos(angle) * this.moveVector.y * speed;
                 const forwardZ = Math.sin(angle) * this.moveVector.y * speed;
+
+                // 左右移動（X軸）
                 const rightX = Math.cos(angle + Math.PI / 2) * this.moveVector.x * speed;
                 const rightZ = Math.sin(angle + Math.PI / 2) * this.moveVector.x * speed;
 
@@ -2017,169 +2453,6 @@
                 if (!this.game.checkCollision(this.game.player.x, this.game.player.y, newZ)) {
                     this.game.player.z = newZ;
                 }
-            }
-        }
-
-        // 方塊高亮系統
-        class BlockHighlightSystem {
-            constructor(game) {
-                this.game = game;
-                this.highlightedBlocks = new Set();
-                this.highlightRange = 5;
-                this.updateInterval = 100; // 100ms更新一次
-                this.lastUpdate = 0;
-            }
-
-            update(currentTime) {
-                if (currentTime - this.lastUpdate < this.updateInterval) return;
-                this.lastUpdate = currentTime;
-
-                this.clearHighlights();
-                
-                if (!this.game.gameStarted || !this.game.worldGenerated) return;
-
-                const playerX = Math.floor(this.game.player.x);
-                const playerY = Math.floor(this.game.player.y);
-                const playerZ = Math.floor(this.game.player.z);
-
-                // 檢查範圍內的方塊
-                for (let x = playerX - this.highlightRange; x <= playerX + this.highlightRange; x++) {
-                    for (let y = playerY - this.highlightRange; y <= playerY + this.highlightRange; y++) {
-                        for (let z = playerZ - this.highlightRange; z <= playerZ + this.highlightRange; z++) {
-                            const distance = Math.sqrt(
-                                Math.pow(x - playerX, 2) +
-                                Math.pow(y - playerY, 2) +
-                                Math.pow(z - playerZ, 2)
-                            );
-
-                            if (distance <= this.highlightRange && this.game.getBlock(x, y, z)) {
-                                this.addHighlight(x, y, z);
-                            }
-                        }
-                    }
-                }
-            }
-
-            addHighlight(x, y, z) {
-                const key = `${x},${y},${z}`;
-                if (this.highlightedBlocks.has(key)) return;
-
-                const screenPos = this.game.worldToScreen(x + 0.5, y + 0.5, z + 0.5);
-                if (!screenPos || screenPos.z <= 0 || screenPos.z >= 1) return;
-
-                const highlight = document.createElement('div');
-                highlight.className = 'block-highlight';
-                highlight.id = `highlight-${key}`;
-                highlight.style.left = (screenPos.x - 10) + 'px';
-                highlight.style.top = (screenPos.y - 10) + 'px';
-                highlight.style.width = '20px';
-                highlight.style.height = '20px';
-
-                document.body.appendChild(highlight);
-                this.highlightedBlocks.add(key);
-            }
-
-            clearHighlights() {
-                this.highlightedBlocks.forEach(key => {
-                    const element = document.getElementById(`highlight-${key}`);
-                    if (element) {
-                        element.remove();
-                    }
-                });
-                this.highlightedBlocks.clear();
-            }
-
-            destroy() {
-                this.clearHighlights();
-            }
-        }
-
-        // 優化的物品欄滾動系統
-        class InventoryScrollSystem {
-            constructor() {
-                this.inventory = document.getElementById('inventory');
-                this.isScrolling = false;
-                this.scrollVelocity = 0;
-                this.scrollThreshold = 50; // 累積滾動閾值
-                this.accumulatedDelta = 0;
-                this.friction = 0.95;
-                this.setupScrolling();
-            }
-
-            setupScrolling() {
-                // 滑鼠滾輪
-                this.inventory.addEventListener('wheel', (e) => {
-                    e.preventDefault();
-                    this.handleScroll(e.deltaY);
-                });
-
-                // 觸控滾動
-                let startX = 0;
-                let startScrollLeft = 0;
-
-                this.inventory.addEventListener('touchstart', (e) => {
-                    startX = e.touches[0].clientX;
-                    startScrollLeft = this.inventory.scrollLeft;
-                });
-
-                this.inventory.addEventListener('touchmove', (e) => {
-                    e.preventDefault();
-                    const x = e.touches[0].clientX;
-                                        const walk = (x - startX) * 2;
-                    this.inventory.scrollLeft = startScrollLeft - walk;
-                });
-
-                // 慣性滾動
-                this.startInertiaAnimation();
-            }
-
-            handleScroll(deltaY) {
-                this.accumulatedDelta += deltaY;
-
-                if (Math.abs(this.accumulatedDelta) >= this.scrollThreshold) {
-                    const direction = this.accumulatedDelta > 0 ? 1 : -1;
-                    this.switchBlock(direction);
-                    this.accumulatedDelta = 0;
-                }
-            }
-
-            switchBlock(direction) {
-                if (!window.game) return;
-
-                const blockTypes = Object.keys(window.game.blockTypes);
-                const currentIndex = blockTypes.indexOf(window.game.selectedBlock);
-                let newIndex;
-
-                if (direction > 0) {
-                    newIndex = (currentIndex + 1) % blockTypes.length;
-                } else {
-                    newIndex = (currentIndex - 1 + blockTypes.length) % blockTypes.length;
-                }
-
-                window.game.selectedBlock = blockTypes[newIndex];
-                window.game.updateInventoryUI();
-                window.game.showBlockSwitchNotification();
-
-                // 滾動到選中的物品
-                const selectedSlot = document.querySelector('.inventory-slot.active');
-                if (selectedSlot) {
-                    selectedSlot.scrollIntoView({
-                        behavior: 'smooth',
-                        block: 'nearest',
-                        inline: 'center'
-                    });
-                }
-            }
-
-            startInertiaAnimation() {
-                const animate = () => {
-                    if (Math.abs(this.scrollVelocity) > 0.1) {
-                        this.inventory.scrollLeft += this.scrollVelocity;
-                        this.scrollVelocity *= this.friction;
-                    }
-                    requestAnimationFrame(animate);
-                };
-                animate();
             }
         }
 
@@ -2207,7 +2480,7 @@
                 this.blocksRef = null;
                 this.listeners = [];
                 this.lastUpdateTime = 0;
-                this.updateThrottle = 50; // 50ms節流，提升性能
+                this.updateThrottle = 50;
                 this.connectionQuality = 'good';
             }
 
@@ -2514,7 +2787,7 @@
             }
         }
 
-        // WebGL Minecraft 主遊戲類別（完全重寫和優化）
+        // 修復：WebGL Minecraft 主遊戲類別 - 實現真正的20 TPS系統
         class WebGLMinecraft {
             constructor() {
                 this.canvas = document.getElementById('gameCanvas');
@@ -2537,12 +2810,19 @@
                 }
 
                 // 系統初始化
+                this.gameSettings = new GameSettings();
                 this.chatSystem = new MinecraftChatSystem();
                 this.multiplayerManager = new FirebaseMultiplayerManager();
                 this.mobileControls = new MobileControls(this);
-                this.blockHighlightSystem = new BlockHighlightSystem(this);
                 this.inventoryScrollSystem = new InventoryScrollSystem();
                 this.isMultiplayer = false;
+
+                // 修復：實現真正的Minecraft tick系統
+                this.TICKS_PER_SECOND = 20; // Minecraft標準TPS
+                this.TICK_INTERVAL = 1000 / this.TICKS_PER_SECOND; // 50ms per tick
+                this.lastTickTime = 0;
+                this.tickAccumulator = 0;
+                this.currentTick = 0;
 
                 // 性能計數器
                 this.frameCount = 0;
@@ -2557,9 +2837,15 @@
                 this.worldGenerated = false;
                 this.flying = false;
                 this.isPaused = false;
-                                this.worldSeed = Math.random().toString(36).substr(2, 9);
+                this.worldSeed = Math.random().toString(36).substr(2, 9);
 
-                // 玩家
+                // 修復：使用真實Minecraft移動速度（基於tick）
+                this.moveSpeed = 4.317 / this.TICKS_PER_SECOND; // 4.317 m/s ÷ 20 TPS
+                this.sprintMultiplier = 1.3;
+                this.sneakMultiplier = 0.3;
+                this.flySpeedMultiplier = 2.0;
+
+                // 玩家 - 使用真實Minecraft數值
                 this.player = {
                     x: 0, y: 10, z: 0,
                     angle: 0, pitch: 0,
@@ -2572,18 +2858,18 @@
 
                 // 世界設定
                 this.world = new Map();
-                this.worldSize = 128; // 增大世界尺寸
-                this.renderDistance = 32; // 增加渲染距離
-                this.gravity = -0.02;
-                this.jumpPower = 0.4;
+                this.worldSize = 128;
+                this.renderDistance = this.gameSettings.get('renderDistance');
+                this.gravity = -0.08; // Minecraft真實重力（每tick）
+                this.jumpPower = 0.42; // Minecraft真實跳躍高度
 
                 // 重寫的方塊類型系統（參考Minecraft原版顏色）
                 this.blockTypes = {
                     grass: {
                         colors: {
-                            top: [0.486, 0.733, 0.216],    // 草地頂部 - 鮮綠色
-                            side: [0.545, 0.675, 0.322],   // 草地側面 - 棕綠色
-                            bottom: [0.545, 0.396, 0.216]  // 草地底部 - 泥土色
+                            top: [0.486, 0.733, 0.216],
+                            side: [0.545, 0.675, 0.322],
+                            bottom: [0.545, 0.396, 0.216]
                         },
                         id: 1,
                         name: '草地',
@@ -2593,7 +2879,7 @@
                     },
                     stone: {
                         colors: {
-                            top: [0.502, 0.502, 0.502],    // 石頭 - 中灰色
+                            top: [0.502, 0.502, 0.502],
                             side: [0.502, 0.502, 0.502],
                             bottom: [0.502, 0.502, 0.502]
                         },
@@ -2605,8 +2891,8 @@
                     },
                     wood: {
                         colors: {
-                            top: [0.647, 0.498, 0.286],    // 木頭頂部 - 年輪色
-                            side: [0.647, 0.498, 0.286],   // 木頭側面 - 樹皮色
+                            top: [0.647, 0.498, 0.286],
+                            side: [0.647, 0.498, 0.286],
                             bottom: [0.647, 0.498, 0.286]
                         },
                         id: 3,
@@ -2617,20 +2903,20 @@
                     },
                     water: {
                         colors: {
-                            top: [0.247, 0.463, 0.894],    // 水 - 深藍色，更接近MC
+                            top: [0.247, 0.463, 0.894],
                             side: [0.247, 0.463, 0.894],
                             bottom: [0.196, 0.369, 0.714]
                         },
                         id: 4,
                         transparent: true,
-                        alpha: 0.8,  // 提高透明度
+                        alpha: 0.8,
                         name: '水',
                         icon: '🟦',
                         renderType: 'transparent'
                     },
                     sand: {
                         colors: {
-                            top: [0.918, 0.835, 0.647],    // 沙子 - 淺黃色
+                            top: [0.918, 0.835, 0.647],
                             side: [0.918, 0.835, 0.647],
                             bottom: [0.918, 0.835, 0.647]
                         },
@@ -2642,7 +2928,7 @@
                     },
                     snow: {
                         colors: {
-                            top: [0.980, 0.980, 0.980],    // 雪 - 純白色
+                            top: [0.980, 0.980, 0.980],
                             side: [0.980, 0.980, 0.980],
                             bottom: [0.980, 0.980, 0.980]
                         },
@@ -2654,7 +2940,7 @@
                     },
                     leaves: {
                         colors: {
-                            top: [0.486, 0.733, 0.216],    // 樹葉 - 綠色
+                            top: [0.486, 0.733, 0.216],
                             side: [0.486, 0.733, 0.216],
                             bottom: [0.486, 0.733, 0.216]
                         },
@@ -2666,7 +2952,7 @@
                     },
                     cobblestone: {
                         colors: {
-                            top: [0.502, 0.502, 0.502],    // 鵝卵石 - 灰色
+                            top: [0.502, 0.502, 0.502],
                             side: [0.502, 0.502, 0.502],
                             bottom: [0.502, 0.502, 0.502]
                         },
@@ -2678,7 +2964,7 @@
                     },
                     brick: {
                         colors: {
-                            top: [0.588, 0.294, 0.196],    // 磚塊 - 紅棕色
+                            top: [0.588, 0.294, 0.196],
                             side: [0.588, 0.294, 0.196],
                             bottom: [0.588, 0.294, 0.196]
                         },
@@ -2690,16 +2976,16 @@
                     },
                     glass: {
                         colors: {
-                            top: [0.8, 0.9, 1.0],          // 玻璃 - 淺藍白色
+                            top: [0.8, 0.9, 1.0],
                             side: [0.8, 0.9, 1.0],
                             bottom: [0.8, 0.9, 1.0]
                         },
                         id: 10,
                         transparent: true,
-                        alpha: 0.1,  // 極低透明度
+                        alpha: 0.1,
                         name: '玻璃',
                         icon: '🔷',
-                        renderType: 'wireframe'  // 線框渲染
+                        renderType: 'wireframe'
                     }
                 };
 
@@ -2728,11 +3014,6 @@
                 this.viewMatrix = this.createMat4();
                 this.modelMatrix = this.createMat4();
 
-                // 性能優化
-                this.frustumCulling = true;
-                this.occlusionCulling = true;
-                this.levelOfDetail = true;
-
                 // 設定多人遊戲回調
                 this.setupMultiplayerCallbacks();
                 this.showMainMenu();
@@ -2754,6 +3035,7 @@
 
                 document.getElementById('pauseMenu').style.display = 'none';
                 document.getElementById('multiplayerMenu').style.display = 'none';
+                document.getElementById('settingsMenu').style.display = 'none';
                 document.getElementById('loading').style.display = 'none';
 
                 console.log('主選單已顯示');
@@ -2844,6 +3126,13 @@
                 }
             }
 
+            // 更新投影矩陣（支援FOV設定）
+            updateProjectionMatrix() {
+                const aspect = this.canvas.width / this.canvas.height;
+                const fov = (this.gameSettings.get('fov') * Math.PI) / 180;
+                this.perspective(this.projectionMatrix, fov, aspect, 0.1, 1000.0);
+            }
+
             // 簡化的4x4矩陣創建
             createMat4() {
                 return new Float32Array(16);
@@ -2895,7 +3184,7 @@
                 out[8] = nx2; out[9] = y2; out[10] = nz2; out[11] = 0;
                 out[12] = -(nx0 * eyex + nx1 * eyey + nx2 * eyez);
                 out[13] = -(y0 * eyex + y1 * eyey + y2 * eyez);
-                                out[14] = -(nz0 * eyex + nz1 * eyey + nz2 * eyez);
+                out[14] = -(nz0 * eyex + nz1 * eyey + nz2 * eyez);
                 out[15] = 1;
             }
 
@@ -3140,8 +3429,7 @@
 
             setupMatrices() {
                 // 投影矩陣
-                const aspect = this.canvas.width / this.canvas.height;
-                this.perspective(this.projectionMatrix, Math.PI / 4, aspect, 0.1, 1000.0);
+                this.updateProjectionMatrix();
 
                 // WebGL狀態設置
                 this.gl.enable(this.gl.DEPTH_TEST);
@@ -3183,10 +3471,10 @@
                 document.body.appendChild(errorDiv);
             }
 
-            // 暫停/恢復遊戲
+            // 修復：暫停/恢復遊戲
             pauseGame() {
                 this.isPaused = true;
-                document.getElementById('pauseMenu').style.display = 'flex';
+                document.getElementById('pauseMenu').style.display = 'flex'; // 修復：確保顯示暫停選單
                 if (this.mouse.locked) {
                     document.exitPointerLock();
                 }
@@ -3196,9 +3484,17 @@
                 this.isPaused = false;
                 document.getElementById('pauseMenu').style.display = 'none';
                 document.getElementById('multiplayerMenu').style.display = 'none';
+                document.getElementById('settingsMenu').style.display = 'none';
                 if (this.gameStarted) {
                     this.canvas.requestPointerLock();
                 }
+            }
+
+            // 顯示設定選單
+            showSettingsMenu() {
+                document.getElementById('settingsMenu').style.display = 'flex';
+                document.getElementById('pauseMenu').style.display = 'none';
+                document.getElementById('mainMenu').style.display = 'none';
             }
 
             // 顯示多人遊戲選單
@@ -3222,8 +3518,9 @@
                     this.multiplayerManager.disconnect();
                 }
 
-                                document.getElementById('pauseMenu').style.display = 'none';
+                document.getElementById('pauseMenu').style.display = 'none';
                 document.getElementById('multiplayerMenu').style.display = 'none';
+                document.getElementById('settingsMenu').style.display = 'none';
                 this.showMainMenu();
 
                 if (this.mouse.locked) {
@@ -3355,8 +3652,21 @@
                     this.startGame();
                 });
 
+                // 修正：多人遊戲按鈕直接進入多人選單
                 document.getElementById('multiPlayerStartButton').addEventListener('click', () => {
+                    document.getElementById('mainMenu').style.display = 'none';
                     this.showMultiplayerMenu();
+                });
+
+                // 設定按鈕
+                document.getElementById('settingsMenuButton').addEventListener('click', () => {
+                    this.showSettingsMenu();
+                });
+
+                // 設定選單按鈕
+                document.getElementById('backToMainMenuButton').addEventListener('click', () => {
+                    document.getElementById('settingsMenu').style.display = 'none';
+                    this.showMainMenu();
                 });
 
                 // 暫停選單按鈕
@@ -3366,6 +3676,10 @@
 
                 document.getElementById('multiplayerButton').addEventListener('click', () => {
                     this.showMultiplayerMenu();
+                });
+
+                document.getElementById('settingsButton').addEventListener('click', () => {
+                    this.showSettingsMenu();
                 });
 
                 document.getElementById('mainMenuButton').addEventListener('click', () => {
@@ -3397,21 +3711,28 @@
                         if (this.gameStarted) {
                             this.resumeGame();
                         } else {
-                            document.getElementById('pauseMenu').style.display = 'flex';
+                            this.showMainMenu();
                         }
                     }
                 });
 
-                // 鍵盤事件
+                // 修復：鍵盤事件 - ESC暫停功能
+                // 修復：鍵盤事件處理
                 document.addEventListener('keydown', (e) => {
+                    // 修復：如果聊天激活，只處理ESC和Enter，其他按鍵讓聊天框處理
+                    if (this.chatSystem.isActive()) {
+                        if (e.code === 'Escape') {
+                            e.preventDefault();
+                            this.chatSystem.deactivateInput();
+                        }
+                        // 其他按鍵不攔截，讓聊天輸入框正常處理
+                        return;
+                    }
+
                     // ESC鍵暫停/恢復
                     if (e.code === 'Escape') {
                         e.preventDefault();
                         if (this.gameStarted) {
-                            if (this.chatSystem.isActive()) {
-                                return;
-                            }
-
                             if (this.isPaused) {
                                 this.resumeGame();
                             } else {
@@ -3428,16 +3749,12 @@
                         return;
                     }
 
-                    // 如果聊天激活，不處理其他按鍵
-                    if (this.chatSystem.isActive()) {
-                        return;
-                    }
-
                     // 遊戲暫停時不處理移動按鍵
                     if (this.isPaused) return;
 
                     this.keys[e.code] = true;
 
+                    // 其他遊戲按鍵處理...
                     // 數字鍵選擇方塊
                     if (e.code >= 'Digit1' && e.code <= 'Digit9') {
                         const index = parseInt(e.code.slice(-1)) - 1;
@@ -3457,7 +3774,7 @@
                         this.chatSystem.addMessage(`飛行模式：${status}`, 'system');
                     }
 
-                    // 防止空白鍵滾動頁面
+                    // 防止空白鍵滾動頁面（只在遊戲中）
                     if (e.code === 'Space') {
                         e.preventDefault();
                     }
@@ -3470,6 +3787,7 @@
                 });
 
                 document.addEventListener('keyup', (e) => {
+                    // 修復：聊天激活時不處理按鍵釋放
                     if (this.isPaused || this.chatSystem.isActive()) return;
                     this.keys[e.code] = false;
                 });
@@ -3481,21 +3799,16 @@
                     }
                 });
 
-                // 優化的滑鼠滾輪切換物品
-                this.canvas.addEventListener('wheel', (e) => {
-                    if (!this.gameStarted || this.isPaused || this.chatSystem.isActive()) return;
-                    e.preventDefault();
-                    // 滾輪事件由InventoryScrollSystem處理
-                });
-
                 document.addEventListener('pointerlockchange', () => {
                     this.mouse.locked = document.pointerLockElement === this.canvas;
                 });
 
                 document.addEventListener('mousemove', (e) => {
                     if (this.mouse.locked && !this.isPaused && !this.chatSystem.isActive()) {
-                        this.player.angle += e.movementX * 0.003;
-                        this.player.pitch -= e.movementY * 0.003;
+                        // 使用設定中的滑鼠靈敏度
+                        const sensitivity = this.gameSettings.get('mouseSensitivity') * 0.003;
+                        this.player.angle += e.movementX * sensitivity;
+                        this.player.pitch -= e.movementY * sensitivity;
                         this.player.pitch = Math.max(-Math.PI / 2 + 0.1, Math.min(Math.PI / 2 - 0.1, this.player.pitch));
                     }
                 });
@@ -3544,9 +3857,7 @@
                     this.canvas.width = window.innerWidth;
                     this.canvas.height = window.innerHeight;
                     this.gl.viewport(0, 0, this.canvas.width, this.canvas.height);
-
-                    const aspect = this.canvas.width / this.canvas.height;
-                    this.perspective(this.projectionMatrix, Math.PI / 4, aspect, 0.1, 1000.0);
+                    this.updateProjectionMatrix();
                 });
 
                 // 防止頁面滾動
@@ -3610,7 +3921,7 @@
                 document.getElementById('pauseMenu').style.display = 'none';
                 document.getElementById('multiplayerMenu').style.display = 'none';
 
-                                this.player.x = Math.random() * 10 - 5;
+                this.player.x = Math.random() * 10 - 5;
                 this.player.z = Math.random() * 10 - 5;
                 this.player.y = Math.max(5, this.getHighestBlock(this.player.x, this.player.z) + 3);
 
@@ -3683,7 +3994,6 @@
 
                     const heightMap = this.generateHeightMap();
                     const biomeMap = this.generateBiomeMap();
-                    const structureMap = this.generateStructureMap();
 
                     const generateChunk = (chunkX, chunkZ) => {
                         const chunkSize = 16;
@@ -3772,7 +4082,7 @@
                     let processedChunks = 0;
 
                     const processNextChunk = () => {
-                        const chunksPerFrame = 3; // 增加每幀處理的區塊數
+                        const chunksPerFrame = 3;
                         const chunksPerSide = Math.ceil(this.worldSize / 16);
 
                         for (let i = 0; i < chunksPerFrame && processedChunks < totalChunks; i++) {
@@ -3877,15 +4187,9 @@
                 return biomeMap;
             }
 
-            generateStructureMap() {
-                // 為未來的結構生成預留
-                return new Map();
-            }
-
             generateOres(x, z, surfaceHeight) {
-                // 簡單的礦物生成
                 for (let y = -5; y < surfaceHeight - 5; y++) {
-                    if (Math.random() < 0.02) { // 2%機率生成礦物
+                    if (Math.random() < 0.02) {
                         if (y < -3 && Math.random() < 0.3) {
                             this.setBlock(x, y, z, 'cobblestone');
                         }
@@ -3894,7 +4198,6 @@
             }
 
             improvedNoise(x, z) {
-                // 改進的噪聲函數
                 const n1 = Math.sin(x * 2.1 + z * 1.7) * 0.5;
                 const n2 = Math.sin(x * 1.3 - z * 2.3) * 0.3;
                 const n3 = Math.sin(x * 3.7 + z * 0.9) * 0.2;
@@ -3947,7 +4250,7 @@
                 const height = tall ? 6 + Math.floor(Math.random() * 4) : 4 + Math.floor(Math.random() * 3);
 
                 // 樹幹
-                                for (let i = 0; i < height; i++) {
+                for (let i = 0; i < height; i++) {
                     this.setBlock(x, y + i, z, trunkType);
                 }
 
@@ -3973,7 +4276,7 @@
             generateCactus(x, y, z) {
                 const height = 2 + Math.floor(Math.random() * 4);
                 for (let i = 0; i < height; i++) {
-                    this.setBlock(x, y + i, z, 'leaves'); // 用樹葉代表仙人掌
+                    this.setBlock(x, y + i, z, 'leaves');
                 }
             }
 
@@ -4297,7 +4600,7 @@
 
                 // 不透明方塊不渲染被其他不透明方塊遮擋的面
                 if (neighborInfo && !neighborInfo.transparent) {
-                                        return false;
+                    return false;
                 }
 
                 return true;
@@ -4394,10 +4697,10 @@
                     this.gl.uniform1f(this.wireframeUniforms.wireframeAlpha, 0.9);
                     this.gl.uniform3fv(this.wireframeUniforms.cameraPosition, cameraPos);
 
-                    // 動態調整線寬（根據螢幕解析度）
-                    const lineWidth = Math.max(1, Math.min(4, this.canvas.width / 400));
+                    // 動態調整線寬（根據螢幕解析度）- 約1/16方塊大小
+                    const lineWidth = Math.max(2, Math.min(6, this.canvas.width / 320));
                     this.gl.lineWidth(lineWidth);
-                    
+
                     this.renderWireframeChunks();
 
                     // 恢復設置
@@ -4425,7 +4728,7 @@
                         const chunkX = playerChunkX + dx;
                         const chunkZ = playerChunkZ + dz;
                         const distance = Math.sqrt(dx * dx + dz * dz);
-                        
+
                         if (distance <= renderChunkDistance &&
                             chunkX >= 0 && chunkZ >= 0 &&
                             chunkX < Math.ceil(this.worldSize / 16) &&
@@ -4571,7 +4874,7 @@
                     this.gl.vertexAttribPointer(this.wireframeAttributes.position, 3, this.gl.FLOAT, false, 0, 0);
 
                     this.gl.bindBuffer(this.gl.ELEMENT_ARRAY_BUFFER, this.buffers.wireframeIndex);
-                                        this.gl.bufferData(this.gl.ELEMENT_ARRAY_BUFFER, mesh.indices, this.gl.STATIC_DRAW);
+                    this.gl.bufferData(this.gl.ELEMENT_ARRAY_BUFFER, mesh.indices, this.gl.STATIC_DRAW);
 
                     this.gl.drawElements(this.gl.LINES, mesh.indexCount, this.gl.UNSIGNED_SHORT, 0);
 
@@ -4801,30 +5104,33 @@
                 return result;
             }
 
+            // 修復：實現真正的Minecraft tick系統的玩家更新
             updatePlayer() {
                 if (!this.gameStarted || !this.worldGenerated || this.isPaused || this.chatSystem.isActive()) return;
 
-                const speed = 0.15;
-                const sprintMultiplier = this.keys['ShiftLeft'] && !this.flying ? 0.5 : (this.keys['ControlLeft'] ? 2 : 1);
-                const moveSpeed = speed * sprintMultiplier;
+                // 修復：使用基於tick的移動速度
+                const baseSpeed = this.moveSpeed; // 已經是每tick的速度
+                const sprintMultiplier = this.keys['ControlLeft'] ? this.sprintMultiplier : 1;
+                const sneakMultiplier = this.keys['ShiftLeft'] && !this.flying ? this.sneakMultiplier : 1;
+                const speed = baseSpeed * sprintMultiplier * sneakMultiplier;
 
                 let moveX = 0, moveZ = 0;
 
                 if (this.keys['KeyW']) {
-                    moveX += Math.cos(this.player.angle) * moveSpeed;
-                    moveZ += Math.sin(this.player.angle) * moveSpeed;
+                    moveX += Math.cos(this.player.angle) * speed;
+                    moveZ += Math.sin(this.player.angle) * speed;
                 }
                 if (this.keys['KeyS']) {
-                    moveX -= Math.cos(this.player.angle) * moveSpeed;
-                    moveZ -= Math.sin(this.player.angle) * moveSpeed;
+                    moveX -= Math.cos(this.player.angle) * speed;
+                    moveZ -= Math.sin(this.player.angle) * speed;
                 }
                 if (this.keys['KeyA']) {
-                    moveX += Math.cos(this.player.angle - Math.PI / 2) * moveSpeed;
-                    moveZ += Math.sin(this.player.angle - Math.PI / 2) * moveSpeed;
+                    moveX += Math.cos(this.player.angle - Math.PI / 2) * speed;
+                    moveZ += Math.sin(this.player.angle - Math.PI / 2) * speed;
                 }
                 if (this.keys['KeyD']) {
-                    moveX += Math.cos(this.player.angle + Math.PI / 2) * moveSpeed;
-                    moveZ += Math.sin(this.player.angle + Math.PI / 2) * moveSpeed;
+                    moveX += Math.cos(this.player.angle + Math.PI / 2) * speed;
+                    moveZ += Math.sin(this.player.angle + Math.PI / 2) * speed;
                 }
 
                 const newX = this.player.x + moveX;
@@ -4838,11 +5144,13 @@
                 }
 
                 if (this.flying) {
-                    if (this.keys['Space']) this.player.y += moveSpeed;
-                    if (this.keys['ShiftLeft']) this.player.y -= moveSpeed;
+                    const flySpeed = speed * this.flySpeedMultiplier;
+                    if (this.keys['Space']) this.player.y += flySpeed;
+                    if (this.keys['ShiftLeft']) this.player.y -= flySpeed;
                     this.player.velocity.y = 0;
                     this.player.onGround = false;
                 } else {
+                    // 修復：使用基於tick的重力
                     this.player.velocity.y += this.gravity;
 
                     if (this.keys['Space'] && this.player.onGround) {
@@ -4868,7 +5176,7 @@
                 }
 
                 if (this.isMultiplayer && this.multiplayerManager.isConnected) {
-                    if (this.frameCount % 3 === 0) { // 提高更新頻率
+                    if (this.currentTick % 3 === 0) { // 每3個tick發送一次更新
                         this.multiplayerManager.sendPlayerUpdate({
                             x: this.player.x,
                             y: this.player.y,
@@ -4884,8 +5192,11 @@
                 document.getElementById('position').textContent =
                     `${this.player.x.toFixed(1)}, ${this.player.y.toFixed(1)}, ${this.player.z.toFixed(1)}`;
 
+                // 更新FPS顯示
+                document.getElementById('fpsDisplay').textContent = this.fps;
+
                 if (this.frameCount % 300 === 0) {
-                    console.log(`遊戲狀態: ${this.gameStarted ? '進行中' : '未開始'}, 多人模式: ${this.isMultiplayer}`);
+                    console.log(`遊戲狀態: ${this.gameStarted ? '進行中' : '未開始'}, 多人模式: ${this.isMultiplayer}, TPS: ${this.TICKS_PER_SECOND}`);
                 }
             }
 
@@ -4893,7 +5204,7 @@
                 const nx = x / this.worldSize;
                 const nz = z / this.worldSize;
 
-                                const temperature = this.improvedNoise(nx * 2.5, nz * 2.5);
+                const temperature = this.improvedNoise(nx * 2.5, nz * 2.5);
                 const humidity = this.improvedNoise(nx * 3.1 + 100, nz * 3.1 + 100);
 
                 if (temperature > 0.3 && humidity < -0.2) {
@@ -4909,6 +5220,7 @@
                 }
             }
 
+            // 修復：實現真正的Minecraft tick系統
             update(currentTime) {
                 // 計算FPS
                 if (this.lastFrameTime) {
@@ -4921,14 +5233,33 @@
                 }
                 this.lastFrameTime = currentTime;
 
-                // 更新遊戲邏輯
-                this.updatePlayer();
-                this.updateUI();
-                
-                // 更新方塊高亮系統
-                if (this.blockHighlightSystem) {
-                    this.blockHighlightSystem.update(currentTime);
+                // 修復：實現20 TPS tick系統
+                this.tickAccumulator += currentTime - (this.lastTickTime || currentTime);
+                this.lastTickTime = currentTime;
+
+                // 處理tick更新
+                while (this.tickAccumulator >= this.TICK_INTERVAL) {
+                    this.tick();
+                    this.tickAccumulator -= this.TICK_INTERVAL;
+                    this.currentTick++;
                 }
+
+                // 更新UI（每幀更新）
+                this.updateUI();
+
+                // 更新渲染距離
+                this.renderDistance = this.gameSettings.get('renderDistance');
+            }
+
+            // 修復：新增tick方法 - 真正的Minecraft tick系統
+            tick() {
+                if (!this.gameStarted || this.isPaused) return;
+
+                // 在每個tick中更新玩家
+                this.updatePlayer();
+
+                // 其他需要按tick更新的邏輯可以在這裡添加
+                // 例如：方塊更新、實體更新、紅石更新等
             }
 
             gameLoop() {
@@ -4937,7 +5268,17 @@
                 this.update(currentTime);
                 this.render();
 
-                requestAnimationFrame(() => this.gameLoop());
+                // 使用設定中的最大FPS限制
+                const maxFps = this.gameSettings.get('maxFps');
+                const minFrameTime = 1000 / maxFps;
+                const frameTime = currentTime - (this.lastRenderTime || 0);
+
+                if (frameTime >= minFrameTime) {
+                    this.lastRenderTime = currentTime;
+                    requestAnimationFrame(() => this.gameLoop());
+                } else {
+                    setTimeout(() => this.gameLoop(), minFrameTime - frameTime);
+                }
             }
         } // WebGLMinecraft 類別結束
 
@@ -4961,9 +5302,17 @@
 
             try {
                 new WebGLMinecraft();
-                console.log('🎮 WebGL Minecraft 高級版已啟動！');
-                console.log('📋 新功能列表:');
-                console.log('  ✅ 完全重寫的Minecraft風格聊天系統');
+                console.log('🎮 WebGL Minecraft 完美版已啟動！');
+                console.log('📋 修復完成的功能列表:');
+                console.log('  ✅ 1. 設定選單 - 完整的渲染距離滑桿系統');
+                console.log('  ✅ 2. ESC暫停功能 - 修復暫停選單顯示');
+                console.log('  ✅ 3. Minecraft tick系統 - 重寫為真正的20 TPS');
+                console.log('  ✅ 4. 主選單按鈕置中 - 修復CSS佈局');
+                console.log('  ✅ 5. 移動端操作 - 修復搖桿方向和添加潛行按鈕');
+                console.log('  ✅ 視野距離設定 (8-64格)');
+                console.log('  ✅ 滑鼠滾輪選擇方塊');
+                console.log('  ✅ 完全重寫的Minecraft Java版聊天系統');
+                console.log('  ✅ 真實Minecraft移動速度和跳躍高度（基於tick）');
                 console.log('  ✅ 橘色主題高級UI設計');
                 console.log('  ✅ 真正的透明度渲染系統');
                 console.log('  ✅ 加粗玻璃線框渲染');
@@ -4971,9 +5320,9 @@
                 console.log('  ✅ 響應式UI系統');
                 console.log('  ✅ 優化的物品欄滾動');
                 console.log('  ✅ 完整的/help指令系統');
-                console.log('  ✅ 方塊highlight系統');
-                console.log('  ✅ 移動端操作介面');
+                console.log('  ✅ 移動端操作介面（修復搖桿方向和潛行按鈕）');
                 console.log('  ✅ 性能優化和效果增強');
+                console.log('  ✅ 20 TPS tick系統實現');
             } catch (error) {
                 console.error('遊戲啟動失敗:', error);
                 document.body.innerHTML = `
