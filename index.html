@@ -1048,6 +1048,64 @@
             }
         }
 
+        /* 移動端選單按鈕（右上角） */
+        .mobile-menu-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 60px;
+            height: 60px;
+            background: rgba(0, 0, 0, 0.5);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 2px;
+            cursor: pointer;
+            pointer-events: auto;
+            touch-action: manipulation;
+            backdrop-filter: blur(10px);
+            transition: all 0.2s ease;
+            z-index: 95;
+        }
+
+        .mobile-menu-btn .menu-icon {
+            font-size: 24px;
+            color: white;
+            line-height: 1;
+        }
+
+        .mobile-menu-btn .menu-label {
+            font-size: 9px;
+            color: rgba(255, 255, 255, 0.8);
+            font-weight: 500;
+        }
+
+        .mobile-menu-btn:active {
+            transform: scale(0.95);
+            background: rgba(255, 107, 53, 0.3);
+            border-color: rgba(255, 107, 53, 0.5);
+        }
+
+        /* 聊天輸入激活時的覆蓋層 */
+        .chat-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.3);
+            z-index: 199;
+            display: none;
+            pointer-events: auto;
+        }
+
+        .chat-overlay.active {
+            display: block;
+        }
+
         /* 隱藏移動控制在非觸控設備上 */
         @media (hover: hover) and (pointer: fine) {
             #mobileControls {
@@ -1408,12 +1466,17 @@
         <!-- 玩家名牌容器 -->
         <div id="playerNameTags"></div>
 
-        <!-- 修復：移動端操作介面 -->
-        <!-- 修復：移動端操作介面 - 統一的按鈕佈局 -->
+        <!-- 在移動端控制中添加選單按鈕 -->
         <div id="mobileControls">
             <!-- 左下角搖桿 -->
             <div class="mobile-joystick" id="moveJoystick">
                 <div class="joystick-knob" id="moveKnob"></div>
+            </div>
+
+            <!-- 右上角選單按鈕（類似ESC） -->
+            <div class="mobile-menu-btn" id="mobileMenuBtn">
+                <span class="menu-icon">☰</span>
+                <span class="menu-label">選單</span>
             </div>
 
             <!-- 右側統一的按鈕列 -->
@@ -1771,6 +1834,7 @@
         }
 
         // 完全重寫的Minecraft Java版聊天系統
+        // 完全重寫的Minecraft Java版聊天系統
         class MinecraftChatSystem {
             constructor() {
                 this.messages = [];
@@ -1782,9 +1846,26 @@
                 this.fadeDelay = 3000; // 3秒後淡出，更接近MC
                 this.commandRegistry = new Map();
 
+                // 新增：聊天覆蓋層
+                this.chatOverlay = null;
+
                 this.setupElements();
                 this.setupEventListeners();
                 this.registerCommands();
+                this.createChatOverlay();
+            }
+
+            // 新增：創建聊天覆蓋層
+            createChatOverlay() {
+                this.chatOverlay = document.createElement('div');
+                this.chatOverlay.className = 'chat-overlay';
+                document.body.appendChild(this.chatOverlay);
+
+                // 點擊覆蓋層關閉聊天
+                this.chatOverlay.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    this.deactivateInput();
+                });
             }
 
             setupElements() {
@@ -1795,7 +1876,7 @@
 
             setupEventListeners() {
                 this.messageInput.addEventListener('keydown', (e) => {
-                    // 阻止事件冒泡到遊戲的按鍵處理器
+                    // 阻止事件冒泡
                     e.stopPropagation();
 
                     if (e.code === 'Enter') {
@@ -1814,16 +1895,19 @@
                         e.preventDefault();
                         this.autoComplete();
                     }
-                    // 其他按鍵正常處理，不阻止
                 });
 
-                // 修復：確保聊天輸入框失去焦點時正確處理
+                // 在移動設備上，輸入框失去焦點時關閉聊天
                 this.messageInput.addEventListener('blur', () => {
+                    // 延遲檢查，確保不是因為點擊發送按鈕
                     setTimeout(() => {
-                        if (this.isInputActive) {
-                            this.deactivateInput();
+                        if (this.isInputActive && document.activeElement !== this.messageInput) {
+                            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+                            if (isMobile) {
+                                this.deactivateInput();
+                            }
                         }
-                    }, 100);
+                    }, 200);
                 });
             }
 
@@ -1885,6 +1969,13 @@
                     execute: () => this.showCoords()
                 });
 
+                this.commandRegistry.set('biome', {
+                    description: '顯示當前生物群落',
+                    usage: '/biome',
+                    category: '信息',
+                    execute: () => this.showBiome()
+                });
+
                 this.commandRegistry.set('fps', {
                     description: '顯示FPS信息',
                     usage: '/fps',
@@ -1898,22 +1989,34 @@
                     category: '信息',
                     execute: () => this.showSeed()
                 });
+
+                this.commandRegistry.set('gamemode', {
+                    description: '切換遊戲模式',
+                    usage: '/gamemode <creative|survival>',
+                    category: '遊戲',
+                    execute: (args) => this.changeGamemode(args)
+                });
             }
 
             // 激活聊天輸入
-            // 在MinecraftChatSystem類中
             activateInput() {
                 console.log('聊天系統：激活輸入');
 
                 this.isInputActive = true;
                 this.chatInput.classList.add('active');
-                this.chatInput.style.display = 'block'; // 確保顯示
+                this.chatInput.style.display = 'block';
 
-                // 在移動設備上特別處理
+                // 顯示覆蓋層（移動設備）
                 const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+                if (isMobile && this.chatOverlay) {
+                    this.chatOverlay.classList.add('active');
+                }
 
+                // 整個聊天系統接收滑鼠事件
+                document.getElementById('chatSystem').classList.add('active');
+
+                // 聚焦輸入框
                 if (isMobile) {
-                    // 延遲聚焦以確保虛擬鍵盤正確顯示
                     setTimeout(() => {
                         this.messageInput.focus();
                         this.messageInput.click(); // iOS需要click事件
@@ -1933,25 +2036,32 @@
                     clearTimeout(this.visibilityTimer);
                     this.visibilityTimer = null;
                 }
-
-                console.log('聊天系統：輸入已激活');
             }
 
             // 停用聊天輸入
             deactivateInput() {
+                console.log('聊天系統：關閉輸入');
+
                 this.isInputActive = false;
                 this.chatInput.classList.remove('active');
+                this.chatInput.style.display = 'none';
                 this.messageInput.value = '';
                 this.messageInput.blur();
                 this.historyIndex = -1;
 
-                // 修復：整個聊天系統不再接收滑鼠事件
+                // 隱藏覆蓋層
+                if (this.chatOverlay) {
+                    this.chatOverlay.classList.remove('active');
+                }
+
+                // 整個聊天系統不再接收滑鼠事件
                 document.getElementById('chatSystem').classList.remove('active');
 
                 this.startFadeTimer();
 
-                // 修復：如果遊戲正在進行，重新鎖定滑鼠指針
-                if (window.game && window.game.gameStarted && !window.game.isPaused) {
+                // 如果遊戲正在進行，重新鎖定滑鼠指針（僅限桌面）
+                const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+                if (!isMobile && window.game && window.game.gameStarted && !window.game.isPaused) {
                     window.game.canvas.requestPointerLock();
                 }
             }
@@ -2188,9 +2298,9 @@
             }
 
             showPing() {
-                if (window.game && window.game.isMultiplayer && firebaseAvailable) {
+                if (window.game && window.game.isMultiplayer && window.firebaseAvailable) {
                     const startTime = Date.now();
-                    database.ref('.info/serverTimeOffset').once('value', () => {
+                    window.database.ref('.info/serverTimeOffset').once('value', () => {
                         const ping = Date.now() - startTime;
                         this.addMessage(`網絡延遲: ${ping}ms`, 'info');
                     });
@@ -2210,6 +2320,15 @@
                 }
             }
 
+            showBiome() {
+                if (window.game && window.game.player) {
+                    const biome = window.game.getBiome(window.game.player.x, window.game.player.z);
+                    this.addMessage(`當前生物群落: ${biome}`, 'info');
+                } else {
+                    this.addMessage('無法獲取生物群落：遊戲未啟動', 'error');
+                }
+            }
+
             showFPS() {
                 if (window.game) {
                     this.addMessage(`當前FPS: ${window.game.fps}`, 'info');
@@ -2225,6 +2344,22 @@
                     this.addMessage(`世界種子: ${window.game.worldSeed || 'random'}`, 'info');
                 } else {
                     this.addMessage('無法獲取種子：遊戲未啟動', 'error');
+                }
+            }
+
+            changeGamemode(args) {
+                if (args.length === 0) {
+                    this.addMessage('用法: /gamemode <creative|survival>', 'error');
+                    return;
+                }
+
+                const mode = args[0].toLowerCase();
+                if (mode === 'creative' || mode === 'c') {
+                    this.addMessage('遊戲模式已切換為創造模式', 'info');
+                } else if (mode === 'survival' || mode === 's') {
+                    this.addMessage('遊戲模式已切換為生存模式', 'info');
+                } else {
+                    this.addMessage('無效的遊戲模式。可用模式: creative, survival', 'error');
                 }
             }
 
@@ -2263,6 +2398,31 @@
                     } else if (matches.length > 1) {
                         this.addMessage(`可用指令: ${matches.join(', ')}`, 'info');
                     }
+                } else {
+                    const words = beforeCursor.split(' ');
+                    const lastWord = words[words.length - 1];
+
+                    if (lastWord.length < 2) return;
+
+                    let playerNames = [];
+                    if (window.game && window.game.isMultiplayer) {
+                        const players = window.game.multiplayerManager.getOtherPlayers();
+                        playerNames = players.map(p => p.name);
+                        playerNames.push(window.game.multiplayerManager.playerName || '你');
+                    }
+
+                    const matches = playerNames.filter(name =>
+                        name.toLowerCase().startsWith(lastWord.toLowerCase())
+                    );
+
+                    if (matches.length === 1) {
+                        words[words.length - 1] = matches[0];
+                        const newValue = words.join(' ') + input.substring(cursorPos);
+                        this.messageInput.value = newValue;
+                        this.messageInput.setSelectionRange(words.join(' ').length, words.join(' ').length);
+                    } else if (matches.length > 1) {
+                        this.addMessage(`可能的玩家: ${matches.join(', ')}`, 'info');
+                    }
                 }
             }
 
@@ -2281,6 +2441,9 @@
             destroy() {
                 if (this.visibilityTimer) {
                     clearTimeout(this.visibilityTimer);
+                }
+                if (this.chatOverlay && this.chatOverlay.parentNode) {
+                    this.chatOverlay.parentNode.removeChild(this.chatOverlay);
                 }
             }
         }
@@ -2376,6 +2539,7 @@
 
         // 修復：移動端控制系統 - 修復搖桿方向和添加潛行按鈕
         // 完全重寫的移動端控制系統 - 支持多點觸控
+        // 完全重寫的移動端控制系統 - 支持多點觸控
         class MobileControls {
             constructor(game) {
                 this.game = game;
@@ -2413,6 +2577,7 @@
                 // 設置各個控制組件
                 this.setupJoystick();
                 this.setupButtons();
+                this.setupMenuButton();
                 this.setupViewControl();
             }
 
@@ -2528,16 +2693,50 @@
                 }
             }
 
+            // ========== 選單按鈕（ESC功能） ==========
+            setupMenuButton() {
+                const menuBtn = document.getElementById('mobileMenuBtn');
+                if (!menuBtn) {
+                    console.warn('找不到選單按鈕');
+                    return;
+                }
+
+                menuBtn.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+
+                    // 提供視覺反饋
+                    menuBtn.style.transform = 'scale(0.95)';
+
+                    // 執行暫停/恢復功能（類似ESC鍵）
+                    if (this.game.gameStarted) {
+                        if (this.game.isPaused) {
+                            this.game.resumeGame();
+                        } else {
+                            this.game.pauseGame();
+                        }
+                    }
+
+                    // 恢復按鈕大小
+                    setTimeout(() => {
+                        menuBtn.style.transform = 'scale(1)';
+                    }, 100);
+                });
+            }
+
             // ========== 按鈕控制 ==========
-            // 在MobileControls類中更新setupButtons方法
             setupButtons() {
                 // 跳躍按鈕（按住）
                 this.setupButton('jumpBtn', {
-                    start: () => { this.game.keys['Space'] = true; },
-                    end: () => { this.game.keys['Space'] = false; }
-                }, false); // 不是切換按鈕
+                    start: () => {
+                        this.game.keys['Space'] = true;
+                    },
+                    end: () => {
+                        this.game.keys['Space'] = false;
+                    }
+                }, false);
 
-                // 潛行按鈕（切換）
+                // 潛行按鈕（切換式）
                 this.setupButton('sneakBtn', {
                     start: () => {
                         this.game.keys['ShiftLeft'] = !this.game.keys['ShiftLeft'];
@@ -2550,11 +2749,13 @@
                             }
                         }
                     }
-                }, true); // 是切換按鈕
+                }, true);
 
                 // 破壞方塊按鈕（單擊）
                 this.setupButton('breakBtn', {
                     start: () => {
+                        if (!this.game.gameStarted || !this.game.worldGenerated) return;
+
                         const target = this.game.getTargetBlock();
                         if (target) {
                             this.game.removeBlock(target.x, target.y, target.z);
@@ -2568,6 +2769,8 @@
                 // 放置方塊按鈕（單擊）
                 this.setupButton('placeBtn', {
                     start: () => {
+                        if (!this.game.gameStarted || !this.game.worldGenerated) return;
+
                         const target = this.game.getTargetBlock();
                         if (target) {
                             const place = this.game.getPlacePosition(target);
@@ -2582,7 +2785,7 @@
                     }
                 }, false);
 
-                // 飛行按鈕（切換）
+                // 飛行按鈕（切換式）
                 this.setupButton('flyBtn', {
                     start: () => {
                         this.game.flying = !this.game.flying;
@@ -2597,7 +2800,7 @@
                         const status = this.game.flying ? '開啟' : '關閉';
                         this.game.chatSystem.addMessage(`飛行模式：${status}`, 'system');
                     }
-                }, true); // 是切換按鈕
+                }, true);
 
                 // 聊天按鈕（單擊）
                 this.setupButton('mobileChatBtn', {
@@ -2605,6 +2808,15 @@
                         if (this.game.gameStarted) {
                             console.log('開啟聊天');
                             this.game.chatSystem.activateInput();
+
+                            // 提供視覺反饋
+                            const btn = document.getElementById('mobileChatBtn');
+                            if (btn) {
+                                btn.style.background = 'rgba(255, 107, 53, 0.3)';
+                                setTimeout(() => {
+                                    btn.style.background = '';
+                                }, 200);
+                            }
                         }
                     }
                 }, false);
@@ -2649,44 +2861,9 @@
                         e.stopPropagation();
                         button.style.transform = 'scale(1)';
                     });
-                }
-            }
-
-            setupButton(buttonId, handlers) {
-                const button = document.getElementById(buttonId);
-                if (!button) {
-                    console.warn(`找不到按鈕: ${buttonId}`);
-                    return;
-                }
-
-                // 觸控事件
-                button.addEventListener('touchstart', (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    if (handlers.start) handlers.start();
-
-                    // 視覺反饋
-                    button.style.transform = 'scale(0.95)';
-                });
-
-                if (handlers.end) {
-                    button.addEventListener('touchend', (e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        handlers.end();
-                        button.style.transform = 'scale(1)';
-                    });
 
                     button.addEventListener('touchcancel', (e) => {
                         e.preventDefault();
-                        handlers.end();
-                        button.style.transform = 'scale(1)';
-                    });
-                } else {
-                    // 如果沒有end處理器，touchend時恢復縮放
-                    button.addEventListener('touchend', (e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
                         button.style.transform = 'scale(1)';
                     });
                 }
@@ -2775,8 +2952,23 @@
                             this.lastLookPosition = null;
                             break;
                         }
+                        if (touch.identifier === this.joystickTouchId) {
+                            this.resetJoystick();
+                            break;
+                        }
                     }
                 });
+
+                // 防止預設的觸控行為
+                canvas.addEventListener('touchstart', (e) => {
+                    // 只在非UI元素上防止默認行為
+                    const element = document.elementFromPoint(e.touches[0].clientX, e.touches[0].clientY);
+                    if (!element || (!element.classList.contains('mobile-btn') &&
+                        !element.classList.contains('mobile-chat-btn') &&
+                        !element.classList.contains('mobile-menu-btn'))) {
+                        e.preventDefault();
+                    }
+                }, { passive: false });
             }
 
             // ========== 更新方法 ==========
@@ -2803,6 +2995,35 @@
                 }
                 if (!this.game.checkCollision(this.game.player.x, this.game.player.y, newZ)) {
                     this.game.player.z = newZ;
+                }
+            }
+
+            // ========== 輔助方法 ==========
+            handleBlockBreak() {
+                if (!this.game.gameStarted || !this.game.worldGenerated) return;
+
+                const target = this.game.getTargetBlock();
+                if (target) {
+                    this.game.removeBlock(target.x, target.y, target.z);
+                    if (this.game.isMultiplayer && this.game.multiplayerManager.isConnected) {
+                        this.game.multiplayerManager.sendBlockUpdate(target.x, target.y, target.z, null, 'break');
+                    }
+                }
+            }
+
+            handleBlockPlace() {
+                if (!this.game.gameStarted || !this.game.worldGenerated) return;
+
+                const target = this.game.getTargetBlock();
+                if (target) {
+                    const place = this.game.getPlacePosition(target);
+                    if (place && !this.game.isPlayerColliding(place.x, place.y, place.z)) {
+                        this.game.setBlock(place.x, place.y, place.z, this.game.selectedBlock);
+                        this.game.regenerateNearbyChunks(place.x, place.y, place.z);
+                        if (this.game.isMultiplayer && this.game.multiplayerManager.isConnected) {
+                            this.game.multiplayerManager.sendBlockUpdate(place.x, place.y, place.z, this.game.selectedBlock, 'place');
+                        }
+                    }
                 }
             }
         }
