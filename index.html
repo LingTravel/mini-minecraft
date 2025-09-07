@@ -3968,6 +3968,8 @@
                     cameraZ: null
                 };
 
+                this.characterModels = new Map();
+
                 // 其他玩家渲染數據
                 this.otherPlayers = new Map();
 
@@ -6125,18 +6127,55 @@
                 }
             }
 
-            // 渲染其他玩家
             renderOtherPlayers() {
                 if (!this.isMultiplayer) return;
 
-                this.cleanupPlayerNameTags();
+                this.otherPlayers.forEach((playerData, playerId) => {
+                    // 如果角色不存在，創建新的
+                    if (!this.characterModels.has(playerId)) {
+                        const character = new MinecraftCharacter(
+                            this,
+                            playerId,
+                            playerData.name,
+                            false
+                        );
+                        this.characterModels.set(playerId, character);
+                    }
 
-                this.otherPlayers.forEach((player, playerId) => {
-                    try {
-                        this.renderPlayer(player);
-                        this.renderPlayerNameTag(player);
-                    } catch (error) {
-                        console.error(`渲染玩家 ${playerId} 時發生錯誤:`, error);
+                    const character = this.characterModels.get(playerId);
+
+                    // 計算移動狀態
+                    const prevPos = character.position;
+                    const deltaX = playerData.x - prevPos.x;
+                    const deltaZ = playerData.z - prevPos.z;
+                    const isMoving = Math.abs(deltaX) > 0.01 || Math.abs(deltaZ) > 0.01;
+                    const movementSpeed = Math.sqrt(deltaX * deltaX + deltaZ * deltaZ);
+                    const isRunning = movementSpeed > 0.15;
+
+                    // 更新動畫狀態
+                    character.updateAnimations({
+                        isMoving: isMoving,
+                        isRunning: isRunning,
+                        isSneaking: playerData.isSneaking || false,
+                        isMining: playerData.isMining || false,
+                        isPlacing: playerData.isPlacing || false
+                    });
+
+                    // 渲染角色
+                    character.render(
+                        this.gl,
+                        this.shaderProgram,
+                        this.buffers,
+                        this.attributes,
+                        playerData
+                    );
+                });
+
+                // 清理離線玩家的模型
+                this.characterModels.forEach((character, playerId) => {
+                    if (!this.otherPlayers.has(playerId)) {
+                        character.destroy();
+                        this.characterModels.delete(playerId);
                     }
                 });
             }
