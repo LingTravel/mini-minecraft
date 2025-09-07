@@ -2263,6 +2263,12 @@
                 this.joystickRadius = 60;
                 this.moveVector = { x: 0, y: 0 };
 
+                // 多點觸控追蹤
+                this.touches = new Map();
+                this.joystickTouchId = null;
+                this.lookTouchId = null;
+                this.lastLookTouch = null;
+
                 if (this.isMobile) {
                     this.setupMobileControls();
                 }
@@ -2275,81 +2281,98 @@
 
             setupMobileControls() {
                 const mobileControls = document.getElementById('mobileControls');
-                mobileControls.style.display = 'block';
+                if (mobileControls) {
+                    mobileControls.style.display = 'block';
+                }
 
-                this.setupJoystick();
-                this.setupActionButtons();
-                this.setupChatButton(); // 單獨處理聊天按鈕
-                this.setupTouchLook();
-            }
-
-            setupChatButton() {
-                // 等待DOM完全加載
-                const setupChat = () => {
-                    const chatBtn = document.getElementById('mobileChatBtn');
-
-                    if (!chatBtn) {
-                        console.error('找不到聊天按鈕元素！');
-                        return;
-                    }
-
-                    console.log('設置聊天按鈕事件');
-
-                    // 移除所有舊的事件監聽器
-                    const newChatBtn = chatBtn.cloneNode(true);
-                    chatBtn.parentNode.replaceChild(newChatBtn, chatBtn);
-
-                    // 添加新的事件監聽器
-                    const handleChatClick = (e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-
-                        console.log('聊天按鈕被點擊');
-
-                        // 確保遊戲已經開始
-                        if (!this.game || !this.game.gameStarted) {
-                            console.log('遊戲尚未開始');
-                            return;
-                        }
-
-                        // 確保聊天系統存在
-                        if (!this.game.chatSystem) {
-                            console.error('聊天系統不存在');
-                            return;
-                        }
-
-                        // 激活聊天
-                        console.log('激活聊天輸入');
-                        this.game.chatSystem.activateInput();
-
-                        // 提供視覺反饋
-                        newChatBtn.style.background = 'rgba(255, 107, 53, 0.5)';
-                        setTimeout(() => {
-                            newChatBtn.style.background = 'rgba(0, 0, 0, 0.5)';
-                        }, 200);
-                    };
-
-                    // 同時監聽多種事件類型
-                    newChatBtn.addEventListener('click', handleChatClick);
-                    newChatBtn.addEventListener('touchend', handleChatClick);
-
-                    // 防止touchstart默認行為
-                    newChatBtn.addEventListener('touchstart', (e) => {
-                        e.preventDefault();
-                        newChatBtn.style.background = 'rgba(255, 107, 53, 0.3)';
-                    });
-
-                    console.log('聊天按鈕事件設置完成');
-                };
-
-                // 確保DOM加載完成後設置
-                if (document.readyState === 'loading') {
-                    document.addEventListener('DOMContentLoaded', setupChat);
+                // 確保所有方法都存在且名稱正確
+                if (typeof this.setupJoystick === 'function') {
+                    this.setupJoystick();
                 } else {
-                    setupChat();
+                    console.error('setupJoystick 方法不存在');
+                }
+
+                if (typeof this.setupActionButtons === 'function') {
+                    this.setupActionButtons();
+                } else {
+                    console.error('setupActionButtons 方法不存在');
+                }
+
+                if (typeof this.setupChatButton === 'function') {
+                    this.setupChatButton();
+                } else {
+                    console.error('setupChatButton 方法不存在');
+                }
+
+                if (typeof this.setupMultiTouchLook === 'function') {
+                    this.setupMultiTouchLook();
+                } else if (typeof this.setupTouchLook === 'function') {
+                    this.setupTouchLook(); // 如果沒有多點觸控方法，使用舊方法
+                } else {
+                    console.error('setupMultiTouchLook 或 setupTouchLook 方法不存在');
                 }
             }
 
+            // 確保 setupJoystick 方法存在
+            setupJoystick() {
+                const joystick = document.getElementById('moveJoystick');
+                const knob = document.getElementById('moveKnob');
+
+                if (!joystick || !knob) {
+                    console.error('找不到搖桿元素');
+                    return;
+                }
+
+                const rect = joystick.getBoundingClientRect();
+                this.joystickCenter = {
+                    x: rect.left + rect.width / 2,
+                    y: rect.top + rect.height / 2
+                };
+
+                const handleStart = (e) => {
+                    e.preventDefault();
+                    this.joystickActive = true;
+                    joystick.style.opacity = '1';
+                };
+
+                const handleMove = (e) => {
+                    if (!this.joystickActive) return;
+                    e.preventDefault();
+
+                    const touch = e.touches ? e.touches[0] : e;
+                    const dx = touch.clientX - this.joystickCenter.x;
+                    const dy = touch.clientY - this.joystickCenter.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+
+                    if (distance <= this.joystickRadius) {
+                        knob.style.transform = `translate(-50%, -50%) translate(${dx}px, ${dy}px)`;
+                        this.moveVector.x = dx / this.joystickRadius;
+                        this.moveVector.y = -dy / this.joystickRadius;
+                    } else {
+                        const angle = Math.atan2(dy, dx);
+                        const limitedX = Math.cos(angle) * this.joystickRadius;
+                        const limitedY = Math.sin(angle) * this.joystickRadius;
+                        knob.style.transform = `translate(-50%, -50%) translate(${limitedX}px, ${limitedY}px)`;
+                        this.moveVector.x = Math.cos(angle);
+                        this.moveVector.y = -Math.sin(angle);
+                    }
+                };
+
+                const handleEnd = (e) => {
+                    e.preventDefault();
+                    this.joystickActive = false;
+                    knob.style.transform = 'translate(-50%, -50%)';
+                    this.moveVector = { x: 0, y: 0 };
+                    joystick.style.opacity = '0.8';
+                };
+
+                joystick.addEventListener('touchstart', handleStart);
+                joystick.addEventListener('touchmove', handleMove);
+                joystick.addEventListener('touchend', handleEnd);
+                joystick.addEventListener('touchcancel', handleEnd);
+            }
+
+            // 確保其他方法也存在
             setupActionButtons() {
                 const jumpBtn = document.getElementById('jumpBtn');
                 const breakBtn = document.getElementById('breakBtn');
@@ -2357,7 +2380,6 @@
                 const sneakBtn = document.getElementById('sneakBtn');
                 const flyBtn = document.getElementById('flyBtn');
 
-                // 跳躍按鈕
                 if (jumpBtn) {
                     jumpBtn.addEventListener('touchstart', (e) => {
                         e.preventDefault();
@@ -2369,7 +2391,6 @@
                     });
                 }
 
-                // 潛行按鈕
                 if (sneakBtn) {
                     sneakBtn.addEventListener('touchstart', (e) => {
                         e.preventDefault();
@@ -2383,7 +2404,6 @@
                     });
                 }
 
-                // 破壞方塊按鈕
                 if (breakBtn) {
                     breakBtn.addEventListener('touchstart', (e) => {
                         e.preventDefault();
@@ -2391,7 +2411,6 @@
                     });
                 }
 
-                // 放置方塊按鈕
                 if (placeBtn) {
                     placeBtn.addEventListener('touchstart', (e) => {
                         e.preventDefault();
@@ -2399,41 +2418,26 @@
                     });
                 }
 
-                // 飛行模式按鈕
                 if (flyBtn) {
                     flyBtn.addEventListener('touchstart', (e) => {
                         e.preventDefault();
                         this.game.flying = !this.game.flying;
                         const status = this.game.flying ? '開啟' : '關閉';
                         this.game.chatSystem.addMessage(`飛行模式：${status}`, 'system');
-                        flyBtn.style.background = this.game.flying ? 'var(--primary)' : 'var(--bg-glass)';
                     });
                 }
             }
 
-            // 專門為聊天按鈕設置事件處理
             setupChatButton() {
-                // 使用正確的類名選擇器
-                const chatBtn = document.querySelector('.mobile-chat-btn');
+                const chatBtn = document.getElementById('mobileChatBtn');
 
                 if (chatBtn) {
-                    console.log("聊天按鈕已找到，添加事件監聽器");
-
-                    // 使用多種事件確保能夠觸發
-                    ['touchstart', 'touchend', 'click'].forEach(eventType => {
-                        chatBtn.addEventListener(eventType, (e) => {
-                            e.preventDefault();
-                            e.stopPropagation(); // 防止事件冒泡
-                            console.log("聊天按鈕被點擊");
-
-                            if (this.game && this.game.gameStarted) {
-                                console.log("正在嘗試打開聊天...");
-                                this.game.chatSystem.activateInput();
-                            }
-                        });
+                    chatBtn.addEventListener('touchstart', (e) => {
+                        e.preventDefault();
+                        if (this.game.gameStarted) {
+                            this.game.chatSystem.activateInput();
+                        }
                     });
-                } else {
-                    console.error("找不到聊天按鈕元素! 請檢查HTML結構。");
                 }
             }
 
@@ -2457,7 +2461,6 @@
                         const deltaX = touch.clientX - lastTouch.x;
                         const deltaY = touch.clientY - lastTouch.y;
 
-                        // 使用設定中的滑鼠靈敏度
                         const sensitivity = this.game.gameSettings.get('mouseSensitivity') * 0.005;
                         this.game.player.angle += deltaX * sensitivity;
                         this.game.player.pitch -= deltaY * sensitivity;
@@ -2506,15 +2509,12 @@
             update() {
                 if (!this.isMobile || !this.joystickActive) return;
 
-                // 修復：正確的移動方向計算
                 const speed = this.game.moveSpeed;
                 const angle = this.game.player.angle;
 
-                // 前後移動（Y軸）
                 const forwardX = Math.cos(angle) * this.moveVector.y * speed;
                 const forwardZ = Math.sin(angle) * this.moveVector.y * speed;
 
-                // 左右移動（X軸）
                 const rightX = Math.cos(angle + Math.PI / 2) * this.moveVector.x * speed;
                 const rightZ = Math.sin(angle + Math.PI / 2) * this.moveVector.x * speed;
 
